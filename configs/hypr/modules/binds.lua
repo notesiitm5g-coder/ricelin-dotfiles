@@ -72,3 +72,4 @@ hl.bind("XF86AudioNext",        hl.dsp.global("quickshell:mediaNext"),          
 hl.bind("XF86AudioPrev",        hl.dsp.global("quickshell:mediaPrev"),                             { locked = true })
 hl.bind(mod .. " + bracketleft",  hl.dsp.exec_cmd("echo TEST > /tmp/bind_test"))
 hl.bind(mod .. " + W", hl.dsp.exec_cmd("firefox"))
+hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("hyprexpose"))
