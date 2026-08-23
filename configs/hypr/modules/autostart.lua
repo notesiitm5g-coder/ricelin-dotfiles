@@ -10,5 +10,5 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("systemctl --user restart hypridle")
     -- warm the page cache so a user's first fastfetch run doesn't stall on cold pacman db reads
     hl.exec_cmd("fastfetch")
-    hl.exec_cmd("hyprexpose")
+    hl.exec_cmd("hyprexpose --allow-mouse")
 end)
