@@ -31,7 +31,8 @@ PillSurface {
         var all = Pipewire.nodes.values;
         for (var i = 0; i < all.length; i++) {
             var n = all[i];
-            if (n && n.isSink && !n.isStream && n.audio)
+            // ricelin_eq is the EQ's own smart-filter sink, not a device to pick.
+            if (n && n.isSink && !n.isStream && n.audio && n.name !== "ricelin_eq")
                 out.push(n);
         }
         out.sort((a, b) => root.deviceLabel(a).localeCompare(root.deviceLabel(b)));

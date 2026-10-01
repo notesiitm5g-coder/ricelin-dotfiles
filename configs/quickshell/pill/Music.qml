@@ -61,15 +61,6 @@ PillSurface {
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.8 * root.s
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: AudioFx.sinkLabel
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: 10 * root.s
-                    elide: Text.ElideRight
-                    width: Math.min(implicitWidth, 200 * root.s)
-                }
             }
 
             Row {
@@ -107,6 +98,32 @@ PillSurface {
                     onToggled: AudioFx.setEnabled(!AudioFx.enabled)
                 }
             }
+        }
+
+        // Which output's settings this page edits. Each device keeps its own EQ,
+        // effects and boost; the playing device's profile is the one you hear.
+        DisplayPicker {
+            id: devicePick
+            width: parent.width
+            s: root.s
+            label: "Device"
+            open: false
+            options: AudioFx.outputs.map(function (n) {
+                return { label: AudioFx.labelOf(n) + (n.name === AudioFx.sinkName ? "  ·  playing" : ""), value: n.name };
+            })
+            value: AudioFx.editSink
+            onRequestToggle: devicePick.open = !devicePick.open
+            onPicked: (v) => { AudioFx.selectEdit(v); devicePick.open = false; }
+        }
+
+        Text {
+            visible: AudioFx.editSink.length > 0 && AudioFx.editSink !== AudioFx.sinkName
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "Not the playing output: changes are saved and apply when you switch to it."
+            color: Theme.faint
+            font.family: Theme.font
+            font.pixelSize: 10 * root.s
         }
 
         // Spectrum.
@@ -364,44 +381,58 @@ PillSurface {
         // Per-device volume boost.
         Column {
             width: parent.width
-            spacing: 8 * root.s
+            spacing: 4 * root.s
 
             Item {
                 width: parent.width
-                height: boostTitle.implicitHeight
-                Text {
-                    id: boostTitle
+                height: boostSeg.height
+
+                Column {
                     anchors.left: parent.left
-                    text: "Volume boost"
-                    color: Theme.cream
-                    font.family: Theme.font
-                    font.pixelSize: 12 * root.s
-                    font.weight: Font.DemiBold
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 3 * root.s
+                    Text {
+                        text: "Volume boost"
+                        color: Theme.cream
+                        font.family: Theme.font
+                        font.pixelSize: 12 * root.s
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        text: "For " + AudioFx.editLabel
+                        color: Theme.faint
+                        font.family: Theme.font
+                        font.pixelSize: 10 * root.s
+                        width: boostSeg.x - 12 * root.s
+                        elide: Text.ElideRight
+                    }
                 }
-                Text {
+
+                SettingsSeg {
+                    id: boostSeg
                     anchors.right: parent.right
-                    anchors.baseline: boostTitle.baseline
-                    text: "For " + AudioFx.sinkLabel + " only. Above 100% can distort."
-                    color: Theme.faint
-                    font.family: Theme.font
-                    font.pixelSize: 10 * root.s
-                    width: parent.width - boostTitle.width - 16 * root.s
-                    horizontalAlignment: Text.AlignRight
-                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                    s: root.s
+                    options: [
+                        { label: "Off", value: 1.0 },
+                        { label: "125%", value: 1.25 },
+                        { label: "150%", value: 1.5 },
+                        { label: "175%", value: 1.75 },
+                        { label: "200%", value: 2.0 }
+                    ]
+                    value: AudioFx.editBoostCap
+                    onPicked: (v) => AudioFx.setBoost(v)
                 }
             }
 
-            SettingsSeg {
-                s: root.s
-                options: [
-                    { label: "Off", value: 1.0 },
-                    { label: "125%", value: 1.25 },
-                    { label: "150%", value: 1.5 },
-                    { label: "175%", value: 1.75 },
-                    { label: "200%", value: 2.0 }
-                ]
-                value: AudioFx.boostCap
-                onPicked: (v) => AudioFx.setBoost(v)
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignRight
+                text: "Above 100% can distort."
+                color: Theme.faint
+                font.family: Theme.font
+                font.pixelSize: 9.5 * root.s
+                font.italic: true
             }
         }
     }

@@ -37,6 +37,8 @@ Singleton {
     readonly property var presetOrder: ["flat", "bass", "vocal", "hd", "cinema"]
     readonly property var presetLabels: ({ flat: "Flat", bass: "Bass", vocal: "Vocal", hd: "HD", cinema: "Cinema", custom: "Custom" })
 
+    // The profile being edited on the Music page (editSink's), not necessarily the
+    // one playing: the filter always runs the active output's profile.
     property bool enabled: true
     property string preset: "flat"
     property var bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -45,16 +47,94 @@ Singleton {
     property real widen: 0
     /** { "<sink node.name>": cap } for boosted outputs only. */
     property var boost: ({})
+    /** { "<sink node.name>": { enabled, preset, bands, bass, treble, widen } }. Missing = flat, on. */
+    property var profiles: ({})
+    property var legacy: null
+
+    /** Real output devices (the EQ's own virtual sink excluded), sorted by name. */
+    readonly property var outputs: {
+        void Pipewire.nodes.values;
+        var out = [];
+        var all = Pipewire.nodes.values;
+        for (var i = 0; i < all.length; i++) {
+            var n = all[i];
+            if (n && n.isSink && !n.isStream && n.audio && n.name !== "ricelin_eq")
+                out.push(n);
+        }
+        out.sort((a, b) => root.labelOf(a).localeCompare(root.labelOf(b)));
+        return out;
+    }
+    function labelOf(n) { return n ? (n.description || n.nickname || n.name || "Output") : ""; }
+
+    /** Which device the Music page is editing; follows the active output when that changes. */
+    property string editSink: ""
+    readonly property var editNode: {
+        for (var i = 0; i < root.outputs.length; i++)
+            if (root.outputs[i].name === root.editSink) return root.outputs[i];
+        return null;
+    }
+    readonly property string editLabel: editNode ? labelOf(editNode) : root.sinkLabel
+    /** Is the edited device the one playing? Compared live (a derived property went stale inside the sink-change handler). */
+    function editIsActive() { return root.editSink.length > 0 && root.editSink === root.sinkName; }
+    readonly property real editBoostCap: boostCapFor(root.editSink)
+
+    function boostCapFor(name) {
+        var v = (root.boost || {})[name];
+        return (typeof v === "number" && v > 1) ? v : 1.0;
+    }
+    function profileFor(name) {
+        var p = (root.profiles || {})[name];
+        return {
+            enabled: p && typeof p.enabled === "boolean" ? p.enabled : true,
+            preset: p && p.preset ? p.preset : "flat",
+            bands: p && Array.isArray(p.bands) && p.bands.length === 10 ? p.bands : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            bass: p && typeof p.bass === "number" ? p.bass : 0,
+            treble: p && typeof p.treble === "number" ? p.treble : 0,
+            widen: p && typeof p.widen === "number" ? p.widen : 0
+        };
+    }
+    /** Show a device's profile on the page. */
+    function selectEdit(name) {
+        root.editSink = name;
+        var p = root.profileFor(name);
+        root.enabled = p.enabled; root.preset = p.preset; root.bands = p.bands.slice();
+        root.bass = p.bass; root.treble = p.treble; root.widen = p.widen;
+    }
+    /** Store the page's values as editSink's profile; if that device is playing, apply them. */
+    function commit(enabledChanged) {
+        if (root.editSink.length === 0) return;
+        var m = Object.assign({}, root.profiles || {});
+        m[root.editSink] = { enabled: root.enabled, preset: root.preset, bands: root.bands,
+                             bass: root.bass, treble: root.treble, widen: root.widen };
+        root.profiles = m;
+        root.save();
+        if (root.editIsActive()) {
+            root.push();
+            if (enabledChanged) root.pushEnabled();
+        }
+    }
 
     readonly property var sink: Pipewire.defaultAudioSink
     readonly property string sinkName: sink ? (sink.name || "") : ""
     readonly property string sinkLabel: sink ? (sink.description || sink.nickname || sink.name || "Output") : "No output"
     /** Volume cap for the current output: 1.0 unless boosted. */
-    readonly property real boostCap: {
-        void root.boost;
-        var m = root.boost || {};
-        var v = m[root.sinkName];
-        return (typeof v === "number" && v > 1) ? v : 1.0;
+    readonly property real boostCap: { void root.boost; return root.boostCapFor(root.sinkName); }
+
+    // A new active output: load its profile into the filter and the page.
+    onSinkNameChanged: root.activate()
+    Component.onCompleted: root.activate()
+    function activate() {
+        if (root.sinkName.length === 0) return;
+        if (root.legacy) {
+            var m = Object.assign({}, root.profiles || {});
+            if (!m[root.sinkName]) m[root.sinkName] = root.legacy;
+            root.profiles = m;
+            root.legacy = null;
+            root.save();
+        }
+        root.selectEdit(root.sinkName);
+        root.push();
+        root.pushEnabled();
     }
 
     PwObjectTracker { objects: root.sink ? [root.sink] : [] }
@@ -67,14 +147,18 @@ Singleton {
      * any preset.
      */
     function setBoost(cap) {
+        var name = root.editSink;
         var m = Object.assign({}, root.boost || {});
-        if (cap > 1) m[root.sinkName] = cap; else delete m[root.sinkName];
+        if (cap > 1) m[name] = cap; else delete m[name];
         root.boost = m;
         root.save();
+        var target = root.editIsActive() ? "@DEFAULT_AUDIO_SINK@" : (root.editNode ? String(root.editNode.id) : "");
+        if (target.length === 0) return;
+        var vol = root.editNode && root.editNode.audio ? root.editNode.audio.volume : 1;
         if (cap > 1)
-            Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", cap.toFixed(2)]);
-        else if (root.sink && root.sink.audio && root.sink.audio.volume > 1)
-            Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "1.0"]);
+            Quickshell.execDetached(["wpctl", "set-volume", target, cap.toFixed(2)]);
+        else if (vol > 1)
+            Quickshell.execDetached(["wpctl", "set-volume", target, "1.0"]);
     }
 
     function setBand(i, db) {
@@ -83,12 +167,11 @@ Singleton {
         b[i] = Math.max(root.minDb, Math.min(root.maxDb, Math.round(db * 2) / 2));
         root.bands = b;
         root.preset = "custom";
-        root.push();
-        root.save();
+        root.commit(false);
     }
-    function setBass(db) { root.bass = Math.round(db * 2) / 2; root.preset = "custom"; root.push(); root.save(); }
-    function setTreble(db) { root.treble = Math.round(db * 2) / 2; root.preset = "custom"; root.push(); root.save(); }
-    function setWiden(w) { root.widen = Math.max(0, Math.min(1, w)); root.preset = "custom"; root.push(); root.save(); }
+    function setBass(db) { root.bass = Math.round(db * 2) / 2; root.preset = "custom"; root.commit(false); }
+    function setTreble(db) { root.treble = Math.round(db * 2) / 2; root.preset = "custom"; root.commit(false); }
+    function setWiden(w) { root.widen = Math.max(0, Math.min(1, w)); root.preset = "custom"; root.commit(false); }
 
     function applyPreset(name) {
         var p = root.presets[name];
@@ -98,30 +181,29 @@ Singleton {
         root.treble = p.treble;
         root.widen = p.widen;
         root.preset = name;
-        root.push();
-        root.save();
+        root.commit(false);
     }
 
     function setEnabled(on) {
         root.enabled = on;
-        root.pushEnabled();
-        root.save();
+        root.commit(true);
     }
 
     /** The full Props list for pw-cli: both channels' shelves and bands, plus the cross mix. */
     function propsString() {
-        var b = root.bands || [];
+        var a = root.profileFor(root.sinkName);
+        var b = a.bands;
         var parts = [];
-        var peak = Math.max(0, root.bass, root.treble);
+        var peak = Math.max(0, a.bass, a.treble);
         for (var i = 0; i < 10; i++) {
             var g = Number(b[i] || 0);
             peak = Math.max(peak, g);
             parts.push('"b' + (i + 1) + 'L:Gain" ' + g.toFixed(2), '"b' + (i + 1) + 'R:Gain" ' + g.toFixed(2));
         }
-        parts.push('"bassL:Gain" ' + Number(root.bass).toFixed(2), '"bassR:Gain" ' + Number(root.bass).toFixed(2));
-        parts.push('"trebleL:Gain" ' + Number(root.treble).toFixed(2), '"trebleR:Gain" ' + Number(root.treble).toFixed(2));
+        parts.push('"bassL:Gain" ' + Number(a.bass).toFixed(2), '"bassR:Gain" ' + Number(a.bass).toFixed(2));
+        parts.push('"trebleL:Gain" ' + Number(a.treble).toFixed(2), '"trebleR:Gain" ' + Number(a.treble).toFixed(2));
         // Mid/side spread: k = 1 is untouched stereo, 2 doubles the side signal.
-        var k = 1 + Number(root.widen);
+        var k = 1 + Number(a.widen);
         var pre = Math.pow(10, -peak / 20) / (k > 1 ? (1 + (k - 1) / 2) : 1);
         var same = ((1 + k) / 2) * pre;
         var other = ((1 - k) / 2) * pre;
@@ -146,7 +228,7 @@ Singleton {
     function pushEnabled() {
         enableProc.command = ["sh", "-c",
             "id=$(pw-dump 2>/dev/null | jq -r '.[] | select(.info.props[\"node.name\"] == \"ricelin_eq\") | .id' | head -1); "
-            + "[ -n \"$id\" ] && pw-metadata -n filters \"$id\" filter.smart.disabled " + (root.enabled ? "false" : "true") + " >/dev/null"];
+            + "[ -n \"$id\" ] && pw-metadata -n filters \"$id\" filter.smart.disabled " + (root.profileFor(root.sinkName).enabled ? "false" : "true") + " >/dev/null"];
         enableProc.running = true;
     }
     Process { id: enableProc }
@@ -182,10 +264,7 @@ Singleton {
     Timer {
         id: saveTimer
         interval: 300
-        onTriggered: stateFile.setText(JSON.stringify({
-            enabled: root.enabled, preset: root.preset, bands: root.bands,
-            bass: root.bass, treble: root.treble, widen: root.widen, boost: root.boost
-        }, null, 2) + "\n")
+        onTriggered: stateFile.setText(JSON.stringify({ profiles: root.profiles, boost: root.boost }, null, 2) + "\n")
     }
 
     // Read once at startup; the pill is the only writer.
@@ -197,14 +276,14 @@ Singleton {
         onLoaded: {
             try {
                 var d = JSON.parse(stateFile.text());
-                if (typeof d.enabled === "boolean") root.enabled = d.enabled;
-                if (typeof d.preset === "string") root.preset = d.preset;
-                if (Array.isArray(d.bands) && d.bands.length === 10) root.bands = d.bands;
-                if (typeof d.bass === "number") root.bass = d.bass;
-                if (typeof d.treble === "number") root.treble = d.treble;
-                if (typeof d.widen === "number") root.widen = d.widen;
                 if (d.boost && typeof d.boost === "object") root.boost = d.boost;
+                if (d.profiles && typeof d.profiles === "object") root.profiles = d.profiles;
+                // Pre-profile files kept one global EQ: hand it to the first active output.
+                else if (Array.isArray(d.bands))
+                    root.legacy = { enabled: d.enabled !== false, preset: d.preset || "flat", bands: d.bands,
+                                    bass: d.bass || 0, treble: d.treble || 0, widen: d.widen || 0 };
             } catch (e) {}
+            root.activate();
         }
     }
 }
