@@ -21,7 +21,7 @@ Item {
     property real s: 1
     property var barWindow
 
-    visible: SystemTray.items.values.length > 0
+    visible: Flags.showTray && SystemTray.items.values.length > 0
     implicitWidth: visible ? row.implicitWidth : 0
     implicitHeight: 24 * tray.s
 

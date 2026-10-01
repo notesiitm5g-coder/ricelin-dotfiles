@@ -71,11 +71,12 @@ Item {
     readonly property bool displayOpen: surface === "display"
     readonly property bool inputOpen: surface === "input"
     readonly property bool lookOpen: surface === "look"
+    readonly property bool pillitemsOpen: surface === "pillitems"
     readonly property bool idlelockOpen: surface === "idlelock"
     readonly property bool animationOpen: surface === "animation"
     readonly property bool fontpickerOpen: surface === "fontpicker"
     readonly property bool settingsLike: settingsOpen || appearanceOpen || updatesOpen
-        || lookOpen || inputOpen || displayOpen || animationOpen || idlelockOpen || fontpickerOpen
+        || lookOpen || inputOpen || displayOpen || animationOpen || idlelockOpen || fontpickerOpen || pillitemsOpen
     readonly property bool hasMedia: Players.list.length > 0
 
     readonly property var netDevices: (typeof Networking !== "undefined" && Networking && Networking.devices) ? Networking.devices.values : []
@@ -189,6 +190,7 @@ Item {
     readonly property real idlelockW: 392 * s
     readonly property real animationW: 392 * s
     readonly property real fontpickerW: 360 * s
+    readonly property real pillitemsW: 392 * s
     readonly property real toastW: 342 * s
     readonly property real quickChooseW: 344 * s
     readonly property real quickChooseH: 76 * s
@@ -249,6 +251,7 @@ Item {
         display:    { size: () => Qt.size(displayW, surfaceItem(ldDisplay).implicitHeight + 29 * s), ame: () => surfaceItem(ldDisplay) },
         input:      { size: () => Qt.size(inputW, surfaceItem(ldInput).implicitHeight + 29 * s), ame: () => surfaceItem(ldInput) },
         look:       { size: () => Qt.size(lookW, surfaceItem(ldLook).implicitHeight + 29 * s), ame: () => surfaceItem(ldLook) },
+        pillitems:  { size: () => Qt.size(pillitemsW, surfaceItem(ldPillitems).implicitHeight + 29 * s), ame: () => surfaceItem(ldPillitems) },
         idlelock:   { size: () => Qt.size(idlelockW, surfaceItem(ldIdlelock).implicitHeight + 29 * s), ame: () => surfaceItem(ldIdlelock) },
         animation:  { size: () => Qt.size(animationW, surfaceItem(ldAnimation).implicitHeight + 29 * s), ame: () => surfaceItem(ldAnimation) },
         fontpicker: { size: () => Qt.size(fontpickerW, surfaceItem(ldFontpicker).implicitHeight + 29 * s), ame: () => surfaceItem(ldFontpicker) }
@@ -311,6 +314,8 @@ Item {
             return ldAppearance.item;
         if (pill.lookOpen)
             return ldLook.item;
+        if (pill.pillitemsOpen)
+            return ldPillitems.item;
         if (pill.inputOpen)
             return ldInput.item;
         if (pill.displayOpen)
@@ -441,7 +446,7 @@ Item {
             ldWorkspaces.item.closeForm();
             return;
         }
-        if (pill.appearanceOpen || pill.updatesOpen || pill.displayOpen || pill.inputOpen || pill.lookOpen || pill.idlelockOpen || pill.animationOpen || pill.workspacesOpen) {
+        if (pill.appearanceOpen || pill.updatesOpen || pill.displayOpen || pill.inputOpen || pill.lookOpen || pill.idlelockOpen || pill.animationOpen || pill.workspacesOpen || pill.pillitemsOpen) {
             pill.requestSurface("settings");
             return;
         }
@@ -777,6 +782,8 @@ Item {
             return recorderIcon.mapToItem(pill, recorderIcon.width / 2, recorderIcon.height + drop * 0.55);
         if (soulTarget === "sysmon")
             return sysmonIcon.mapToItem(pill, sysmonIcon.width / 2, sysmonIcon.height + drop * 0.55);
+        if (soulTarget === "screenshot")
+            return screenshotIcon.mapToItem(pill, screenshotIcon.width / 2, screenshotIcon.height + drop * 0.55);
         if (soulTarget === "ws" && soulWsIndex >= 0) {
             void ws.activeName;
             void ws.width;
@@ -1438,7 +1445,7 @@ Item {
                 Row {
                     id: weatherGlance
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: Weather.ready
+                    visible: Weather.ready && Flags.showWeather
                     spacing: 5 * pill.s
 
                     HoverHandler {
@@ -1553,13 +1560,13 @@ Item {
 
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: pill.wifiDev !== null || pill.btAdapter !== null || Battery.present
+                    visible: wifiIcon.visible || btIcon.visible || batteryIcon.visible
                     spacing: 12 * pill.s
 
                     Item {
                         id: wifiIcon
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: pill.wifiDev !== null
+                        visible: pill.wifiDev !== null && Flags.showWifi
                         width: 15 * pill.s
                         height: 15 * pill.s
 
@@ -1594,7 +1601,7 @@ Item {
                     Item {
                         id: btIcon
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: pill.btAdapter !== null
+                        visible: pill.btAdapter !== null && Flags.showBt
                         width: 15 * pill.s + (btLowPct.visible ? btLowPct.implicitWidth + 4 * pill.s : 0)
                         height: 15 * pill.s
 
@@ -1646,7 +1653,7 @@ Item {
                     Item {
                         id: batteryIcon
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: Battery.present
+                        visible: Battery.present && Flags.showBattery
                         width: battPct.implicitWidth
                         height: 17 * pill.s
 
@@ -1690,6 +1697,7 @@ Item {
                 Item {
                     id: inboxIcon
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showInbox
                     width: 17 * pill.s
                     height: 17 * pill.s
 
@@ -1727,6 +1735,7 @@ Item {
                 Item {
                     id: mixerIcon
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showMixer
                     width: 17 * pill.s
                     height: 17 * pill.s
 
@@ -1752,6 +1761,7 @@ Item {
                 Item {
                     id: sysmonIcon
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showSysmon
                     width: 17 * pill.s
                     height: 17 * pill.s
 
@@ -1777,6 +1787,7 @@ Item {
                 Item {
                     id: recorderIcon
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showRecorder || ScreenRec.recording
                     width: 17 * pill.s
                     height: 17 * pill.s
 
@@ -1828,6 +1839,34 @@ Item {
                 }
 
                 Item {
+                    id: screenshotIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showScreenshot
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        name: "camera"
+                        color: screenshotArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+
+                    /** rishot: left click drags a region (or clicks a window), right click picks a whole monitor. */
+                    MouseArea {
+                        id: screenshotArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => Quickshell.execDetached(e.button === Qt.RightButton ? ["rishot", "monitor"] : ["rishot"])
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "screenshot"
+                    }
+                }
+
+                Item {
                     id: settingsIcon
                     anchors.verticalCenter: parent.verticalCenter
                     width: 17 * pill.s
@@ -1855,6 +1894,7 @@ Item {
                 Item {
                     id: powerIcon
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showPower
                     width: 17 * pill.s
                     height: 17 * pill.s
 
@@ -2179,6 +2219,19 @@ Item {
         sourceComponent: Look {
             s: pill.s
             open: pill.lookOpen
+            morphCloseness: pill.morphCloseness
+            onRequestClose: pill.requestClose()
+            onRequestSurface: (name) => pill.requestSurface(name)
+        }
+    }
+
+    Loader {
+        id: ldPillitems
+        active: false
+        anchors.fill: parent
+        sourceComponent: PillItems {
+            s: pill.s
+            open: pill.pillitemsOpen
             morphCloseness: pill.morphCloseness
             onRequestClose: pill.requestClose()
             onRequestSurface: (name) => pill.requestSurface(name)

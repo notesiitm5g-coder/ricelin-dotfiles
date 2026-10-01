@@ -53,6 +53,17 @@ Singleton {
     property alias nightLightTemp: adapter.nightLightTemp
     property alias nightLightOnMin: adapter.nightLightOnMin
     property alias nightLightOffMin: adapter.nightLightOffMin
+    property alias showWeather: adapter.showWeather
+    property alias showTray: adapter.showTray
+    property alias showWifi: adapter.showWifi
+    property alias showBt: adapter.showBt
+    property alias showBattery: adapter.showBattery
+    property alias showInbox: adapter.showInbox
+    property alias showMixer: adapter.showMixer
+    property alias showSysmon: adapter.showSysmon
+    property alias showRecorder: adapter.showRecorder
+    property alias showScreenshot: adapter.showScreenshot
+    property alias showPower: adapter.showPower
 
     FileView {
         id: file
@@ -114,6 +125,18 @@ Singleton {
             property int nightLightTemp: 4000
             property int nightLightOnMin: 1260
             property int nightLightOffMin: 450
+            /** Pill item visibility (Settings > Pill items). The settings cog itself is always shown. */
+            property bool showWeather: true
+            property bool showTray: true
+            property bool showWifi: true
+            property bool showBt: true
+            property bool showBattery: true
+            property bool showInbox: true
+            property bool showMixer: true
+            property bool showSysmon: true
+            property bool showRecorder: true
+            property bool showScreenshot: true
+            property bool showPower: true
         }
     }
 }
