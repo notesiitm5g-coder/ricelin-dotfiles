@@ -11,4 +11,7 @@ hl.on("hyprland.start", function()
     -- warm the page cache so a user's first fastfetch run doesn't stall on cold pacman db reads
     hl.exec_cmd("fastfetch")
     hl.exec_cmd("hyprexpose --allow-mouse")
+    hl.exec_cmd("obsidian")
+    -- Apple Music PWA, routed into the Music space (Super+A) and kept folded at login
+    hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/start-hidden.sh music FFPWA-01KZKD9X83WGJHWE77TKGQK2WF firefoxpwa site launch 01KZKD9X83WGJHWE77TKGQK2WF")
 end)

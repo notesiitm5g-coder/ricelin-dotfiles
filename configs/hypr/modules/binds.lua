@@ -70,5 +70,9 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), { loc
 hl.bind("XF86AudioPlay",        hl.dsp.global("quickshell:mediaToggle"),                           { locked = true })
 hl.bind("XF86AudioNext",        hl.dsp.global("quickshell:mediaNext"),                             { locked = true })
 hl.bind("XF86AudioPrev",        hl.dsp.global("quickshell:mediaPrev"),                             { locked = true })
+hl.bind(mod .. " + O",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/displays.sh cycle")) -- Cycle displays
+hl.bind("XF86Display",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/displays.sh cycle")) -- Cycle displays (Fn key)
+hl.bind("switch:on:Lid Switch",  hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/displays.sh lid-close"), { locked = true }) -- Lid closed: lock, or external only when docked
+hl.bind("switch:off:Lid Switch", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/displays.sh lid-open"),  { locked = true }) -- Lid opened: laptop screen back on
 hl.bind(mod .. " + W", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("killall -USR1 hyprexpose"))
