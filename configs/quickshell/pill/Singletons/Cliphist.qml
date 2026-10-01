@@ -133,6 +133,8 @@ Singleton {
      * A failed read (boot-time store lock, db hiccup) must not wipe the last
      * good snapshot; one quiet retry heals the race without looping.
      */
+    property bool retried: false
+
     Timer {
         id: listRetry
         interval: 2000
@@ -180,13 +182,18 @@ Singleton {
         id: listProc
         command: ["cliphist", "list"]
         stdout: StdioCollector { id: collected }
-        onExited: {
-            if (listProc.exitCode !== 0) {
-                console.warn("cliphist list failed with exit code " + listProc.exitCode + ", retrying once");
+        // Process has no exitCode property; the code only arrives as the signal argument.
+        onExited: (exitCode) => {
+            if (exitCode !== 0) {
                 root.pending = false;
-                listRetry.restart();
+                if (!root.retried) {
+                    root.retried = true;
+                    console.warn("cliphist list failed with exit code " + exitCode + ", retrying once");
+                    listRetry.restart();
+                }
                 return;
             }
+            root.retried = false;
             root.applyList(collected.text);
             if (root.pending) {
                 root.pending = false;
