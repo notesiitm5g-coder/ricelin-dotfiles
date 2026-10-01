@@ -24,6 +24,7 @@ SettingsSurface {
         { item: batteryRow, kind: "toggle", get: function () { return Flags.showBattery; }, set: function (v) { Flags.showBattery = v; } },
         { item: inboxRow, kind: "toggle", get: function () { return Flags.showInbox; }, set: function (v) { Flags.showInbox = v; } },
         { item: mixerRow, kind: "toggle", get: function () { return Flags.showMixer; }, set: function (v) { Flags.showMixer = v; } },
+        { item: musicRow, kind: "toggle", get: function () { return Flags.showMusic; }, set: function (v) { Flags.showMusic = v; } },
         { item: sysmonRow, kind: "toggle", get: function () { return Flags.showSysmon; }, set: function (v) { Flags.showSysmon = v; } },
         { item: recorderRow, kind: "toggle", get: function () { return Flags.showRecorder; }, set: function (v) { Flags.showRecorder = v; } },
         { item: screenshotRow, kind: "toggle", get: function () { return Flags.showScreenshot; }, set: function (v) { Flags.showScreenshot = v; } },
@@ -145,6 +146,21 @@ SettingsSurface {
                 s: root.s
                 on: Flags.showMixer
                 onToggled: Flags.showMixer = !Flags.showMixer
+            }
+        }
+
+        SettingsRow {
+            id: musicRow
+            surface: root
+            name: "Music"
+            icon: "music"
+            sub: "Visualizer, equalizer, volume boost"
+            captionOnFocus: true
+
+            LinkToggle {
+                s: root.s
+                on: Flags.showMusic
+                onToggled: Flags.showMusic = !Flags.showMusic
             }
         }
 

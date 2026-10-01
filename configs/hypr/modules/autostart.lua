@@ -8,6 +8,8 @@ hl.on("hyprland.start", function()
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/watchdog.sh pill")
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/watchdog.sh lock")
     hl.exec_cmd("systemctl --user restart hypridle")
+    -- Ricelin EQ: PipeWire smart filter driven by the pill's Music page (audio/ricelin-eq.conf)
+    hl.exec_cmd("systemd-run --user --unit=ricelin-eq -p Restart=on-failure --collect pipewire -c " .. os.getenv("HOME") .. "/.config/hypr/audio/ricelin-eq.conf")
     -- warm the page cache so a user's first fastfetch run doesn't stall on cold pacman db reads
     hl.exec_cmd("fastfetch")
     hl.exec_cmd("hyprexpose --allow-mouse")

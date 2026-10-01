@@ -16,6 +16,9 @@ Item {
     property real value: 0.5
     property bool focused: false
     property bool on: true
+    /** Readout at the right end; percent by default, callers may show their own unit. */
+    property string label: Math.round(root.clamped * 100) + "%"
+    property real labelWidth: 32
 
     signal moved(real v)
     signal committed(real v)
@@ -91,9 +94,9 @@ Item {
         id: pct
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        width: 32 * root.s
+        width: root.labelWidth * root.s
         horizontalAlignment: Text.AlignRight
-        text: Math.round(root.clamped * 100) + "%"
+        text: root.label
         color: root.focused ? Theme.cream : Theme.subtle
         font.family: Theme.font
         font.pixelSize: 10 * root.s

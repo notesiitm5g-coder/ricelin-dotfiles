@@ -580,9 +580,10 @@ PillSurface {
             subLabel: "Volume"
             subPersistent: false
             focused: root.focusIndex === root.faderCount - 2
-            value: root.sink && root.sink.audio ? root.sink.audio.volume : 0
+            // The fader spans 0..cap, where cap is the output's boost (1.0 unless boosted on the Music page).
+            value: root.sink && root.sink.audio ? root.sink.audio.volume / AudioFx.boostCap : 0
             valueLabel: Math.round((root.sink && root.sink.audio ? root.sink.audio.volume : 0) * 100) + "%"
-            onMoved: (v) => { if (root.sink && root.sink.audio) root.sink.audio.volume = v; }
+            onMoved: (v) => { if (root.sink && root.sink.audio) root.sink.audio.volume = v * AudioFx.boostCap; }
         }
         VFader {
             id: micFader

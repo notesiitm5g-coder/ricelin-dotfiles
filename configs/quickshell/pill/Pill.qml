@@ -72,6 +72,7 @@ Item {
     readonly property bool inputOpen: surface === "input"
     readonly property bool lookOpen: surface === "look"
     readonly property bool pillitemsOpen: surface === "pillitems"
+    readonly property bool musicOpen: surface === "music"
     readonly property bool idlelockOpen: surface === "idlelock"
     readonly property bool animationOpen: surface === "animation"
     readonly property bool fontpickerOpen: surface === "fontpicker"
@@ -191,6 +192,7 @@ Item {
     readonly property real animationW: 392 * s
     readonly property real fontpickerW: 360 * s
     readonly property real pillitemsW: 392 * s
+    readonly property real musicW: 500 * s
     readonly property real toastW: 342 * s
     readonly property real quickChooseW: 344 * s
     readonly property real quickChooseH: 76 * s
@@ -251,6 +253,7 @@ Item {
         display:    { size: () => Qt.size(displayW, surfaceItem(ldDisplay).implicitHeight + 29 * s), ame: () => surfaceItem(ldDisplay) },
         input:      { size: () => Qt.size(inputW, surfaceItem(ldInput).implicitHeight + 29 * s), ame: () => surfaceItem(ldInput) },
         look:       { size: () => Qt.size(lookW, surfaceItem(ldLook).implicitHeight + 29 * s), ame: () => surfaceItem(ldLook) },
+        music:      { size: () => Qt.size(musicW, surfaceItem(ldMusic).implicitHeight + 30 * s), ame: () => surfaceItem(ldMusic) },
         pillitems:  { size: () => Qt.size(pillitemsW, surfaceItem(ldPillitems).implicitHeight + 29 * s), ame: () => surfaceItem(ldPillitems) },
         idlelock:   { size: () => Qt.size(idlelockW, surfaceItem(ldIdlelock).implicitHeight + 29 * s), ame: () => surfaceItem(ldIdlelock) },
         animation:  { size: () => Qt.size(animationW, surfaceItem(ldAnimation).implicitHeight + 29 * s), ame: () => surfaceItem(ldAnimation) },
@@ -276,6 +279,8 @@ Item {
 
     signal requestSurface(string name)
     signal requestClose()
+    /** Right click on an open surface: step back to the previous one (see shell.qml goBack). */
+    signal requestBack()
 
     /**
      * Forward an arrow-key nudge to the open mixer's targeted fader. Returns true
@@ -744,6 +749,18 @@ Item {
     }
 
     /**
+     * Right click anywhere on an open surface steps back to the surface it was
+     * opened from. Sits under every surface, so it only sees right clicks that no
+     * control inside claimed (only the launcher and tray use right click).
+     */
+    MouseArea {
+        anchors.fill: parent
+        enabled: pill.surfaceOpen
+        acceptedButtons: Qt.RightButton
+        onClicked: pill.requestBack()
+    }
+
+    /**
      * Rest anchor for Ame: the 時 kanji centre. The idle outline condenses into
      * the bead here before it moves.
      */
@@ -782,6 +799,8 @@ Item {
             return recorderIcon.mapToItem(pill, recorderIcon.width / 2, recorderIcon.height + drop * 0.55);
         if (soulTarget === "sysmon")
             return sysmonIcon.mapToItem(pill, sysmonIcon.width / 2, sysmonIcon.height + drop * 0.55);
+        if (soulTarget === "music")
+            return musicIcon.mapToItem(pill, musicIcon.width / 2, musicIcon.height + drop * 0.55);
         if (soulTarget === "screenshot")
             return screenshotIcon.mapToItem(pill, screenshotIcon.width / 2, screenshotIcon.height + drop * 0.55);
         if (soulTarget === "ws" && soulWsIndex >= 0) {
@@ -1364,6 +1383,14 @@ Item {
 
         readonly property bool live: pill.mode === "hover"
 
+        /** A click on bare pill (not an icon, dot or the clock) opens Now playing, playing or not. */
+        MouseArea {
+            anchors.fill: parent
+            enabled: hover.live
+            cursorShape: Qt.PointingHandCursor
+            onClicked: pill.requestSurface("media")
+        }
+
         Row {
             id: hoverRow
             anchors.centerIn: parent
@@ -1394,7 +1421,7 @@ Item {
             Row {
                 id: quickRow
                 anchors.verticalCenter: parent.verticalCenter
-                visible: (pill.wifiDev !== null && Flags.showWifi) || (pill.btAdapter !== null && Flags.showBt) || Flags.showMixer
+                visible: (pill.wifiDev !== null && Flags.showWifi) || (pill.btAdapter !== null && Flags.showBt) || Flags.showMixer || Flags.showMusic
                 spacing: 12 * pill.s
 
                 Item {
@@ -1507,6 +1534,32 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: pill.requestSurface("mixer")
                         onContainsMouseChanged: if (containsMouse) pill.soulTarget = "mixer"
+                    }
+                }
+
+                Item {
+                    id: musicIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showMusic
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        name: "music"
+                        color: musicArea.containsMouse ? Theme.cream : (AudioFx.enabled && AudioFx.preset !== "flat" ? Theme.vermLit : Theme.iconDim)
+                        stroke: 1.7
+                    }
+
+                    MouseArea {
+                        id: musicArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pill.requestSurface("music")
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "music"
                     }
                 }
             }
@@ -2248,6 +2301,19 @@ Item {
         sourceComponent: PillItems {
             s: pill.s
             open: pill.pillitemsOpen
+            morphCloseness: pill.morphCloseness
+            onRequestClose: pill.requestClose()
+            onRequestSurface: (name) => pill.requestSurface(name)
+        }
+    }
+
+    Loader {
+        id: ldMusic
+        active: false
+        anchors.fill: parent
+        sourceComponent: Music {
+            s: pill.s
+            open: pill.musicOpen
             morphCloseness: pill.morphCloseness
             onRequestClose: pill.requestClose()
             onRequestSurface: (name) => pill.requestSurface(name)

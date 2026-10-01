@@ -64,6 +64,7 @@ Singleton {
     property alias showRecorder: adapter.showRecorder
     property alias showScreenshot: adapter.showScreenshot
     property alias showPower: adapter.showPower
+    property alias showMusic: adapter.showMusic
 
     FileView {
         id: file
@@ -137,6 +138,7 @@ Singleton {
             property bool showRecorder: true
             property bool showScreenshot: true
             property bool showPower: true
+            property bool showMusic: true
         }
     }
 }

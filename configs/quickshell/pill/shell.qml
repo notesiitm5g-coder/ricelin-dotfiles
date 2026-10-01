@@ -138,6 +138,12 @@ ShellRoot {
             root.close();
             return;
         }
+        // Moving between surfaces on one pill records where we came from, so a
+        // right click can step back; opening fresh starts a new trail.
+        if (root.openMon === mon && root.openSurface.length > 0)
+            root.history = root.history.concat([root.openSurface]);
+        else
+            root.history = [];
         root.openMon = mon;
         root.openSurface = surface;
     }
@@ -145,6 +151,19 @@ ShellRoot {
     function close() {
         root.openMon = "";
         root.openSurface = "";
+        root.history = [];
+    }
+
+    /** Previous surface on this pill, or close when the trail is empty. */
+    property var history: []
+    function goBack() {
+        if (root.history.length === 0) {
+            root.close();
+            return;
+        }
+        var prev = root.history[root.history.length - 1];
+        root.history = root.history.slice(0, -1);
+        root.openSurface = prev;
     }
 
     function peek(mon) {
@@ -502,6 +521,7 @@ ShellRoot {
 
                     onRequestSurface: (name) => root.toggleSurface(overlay.modelData.name, name)
                     onRequestClose: root.close()
+                    onRequestBack: root.goBack()
                 }
                 }
             }
