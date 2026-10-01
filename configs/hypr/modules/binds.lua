@@ -47,8 +47,9 @@ hl.bind(mod .. " + SHIFT + 0", hl.dsp.window.move({ workspace = 10, follow = fal
 hl.bind(mod .. " + P",         hl.dsp.workspace.toggle_special("private"))
 hl.bind(mod .. " + SHIFT + P", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/special-toggle.sh private"))
 
-hl.bind(mod .. " + S",         hl.dsp.workspace.toggle_special("stash"))
-hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/special-toggle.sh stash"))
+-- Screenshot. This laptop's PrtSc key sends Super+Shift+S (the Windows snip chord)
+-- instead of Print, so it gets rishot too; plain Print stays bound in rishot.lua.
+hl.bind(mod .. " + SHIFT + S", hl.dsp.exec_cmd("rishot"))
 
 hl.bind(mod .. " + SHIFT + C",  hl.dsp.exec_cmd("hyprpicker -a"))
 
@@ -59,7 +60,7 @@ hl.bind(mod .. " + L",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/h
 
 hl.bind(mod .. " + B",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/wallpaper.sh"))
 hl.bind(mod .. " + C",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/open-surface.sh wallpaper"))
-hl.bind(mod .. " + D",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/record.sh"))
+hl.bind(mod .. " + R",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/record.sh"))
 hl.bind(mod .. " + G",          hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/open-surface.sh gameMode"))
 
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })

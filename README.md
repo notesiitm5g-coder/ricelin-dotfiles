@@ -86,7 +86,8 @@ screenshot tool) makes sense; grab it from [rishot](https://github.com/Gakuseei/
 | `Super` + `E` | file manager |
 | `Super` + `T` | toggle floating |
 | `Super` + `L` | lock |
-| `Print` | rishot |
+| `Super` + `R` | screen recording |
+| `Print` / `Super` + `Shift` + `S` | rishot |
 
 ## Notes
 
