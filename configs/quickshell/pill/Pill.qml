@@ -1390,6 +1390,135 @@ Item {
                 color: Theme.hair
             }
 
+            /** Connectivity and audio, grouped left of the clock; the status row keeps the rest. */
+            Row {
+                id: quickRow
+                anchors.verticalCenter: parent.verticalCenter
+                visible: (pill.wifiDev !== null && Flags.showWifi) || (pill.btAdapter !== null && Flags.showBt) || Flags.showMixer
+                spacing: 12 * pill.s
+
+                Item {
+                    id: wifiIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: pill.wifiDev !== null && Flags.showWifi
+                    width: 15 * pill.s
+                    height: 15 * pill.s
+
+                    WifiGlyph {
+                        anchors.centerIn: parent
+                        s: pill.s
+                        level: pill.wifiLevel
+                        on: pill.wifiOn
+                        stroke: 1.7
+                    }
+
+                    MouseArea {
+                        id: wifiArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => {
+                            if (e.button === Qt.RightButton) {
+                                if (typeof Networking !== "undefined" && Networking)
+                                    Networking.wifiEnabled = !Networking.wifiEnabled;
+                                return;
+                            }
+                            pill.requestSurface("wifi");
+                        }
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "wifi"
+                    }
+                }
+
+                Item {
+                    id: btIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: pill.btAdapter !== null && Flags.showBt
+                    width: 15 * pill.s + (btLowPct.visible ? btLowPct.implicitWidth + 4 * pill.s : 0)
+                    height: 15 * pill.s
+
+                    GlyphIcon {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 15 * pill.s
+                        height: 15 * pill.s
+                        name: "bluetooth"
+                        color: btArea.containsMouse ? Theme.cream
+                            : (Peripherals.connectedCount > 0 ? Theme.vermLit
+                            : (pill.btOn ? Theme.iconDim : Qt.alpha(Theme.iconDim, 0.4)))
+                        stroke: 1.7
+                    }
+
+                    Text {
+                        id: btLowPct
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: Peripherals.lowestPct >= 0 && Peripherals.lowestPct <= Peripherals.lowAt
+                        text: Peripherals.lowestPct + "%"
+                        color: Theme.vermLit
+                        font.family: Theme.font
+                        font.pixelSize: 11 * pill.s
+                        font.weight: Font.DemiBold
+                        font.features: { "tnum": 1 }
+                    }
+
+                    MouseArea {
+                        id: btArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (e) => {
+                            if (e.button === Qt.RightButton) {
+                                if (pill.btAdapter)
+                                    pill.btAdapter.enabled = !pill.btAdapter.enabled;
+                                return;
+                            }
+                            pill.requestSurface("bt");
+                        }
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "bt"
+                    }
+                }
+
+                Item {
+                    id: mixerIcon
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: Flags.showMixer
+                    width: 17 * pill.s
+                    height: 17 * pill.s
+
+                    GlyphIcon {
+                        anchors.fill: parent
+                        name: "mixer"
+                        color: mixerArea.containsMouse ? Theme.cream : Theme.iconDim
+                        stroke: 1.7
+                    }
+
+                    MouseArea {
+                        id: mixerArea
+                        anchors.fill: parent
+                        anchors.margins: -6 * pill.s
+                        hoverEnabled: true
+                        enabled: hover.live
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: pill.requestSurface("mixer")
+                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "mixer"
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: quickRow.visible
+                width: 1
+                height: 22 * pill.s
+                color: Theme.hair
+            }
+
             Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: hoverClock.implicitWidth
@@ -1560,99 +1689,8 @@ Item {
 
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    // The children's own conditions, not child.visible: an invisible parent reports
-                    // its children invisible too, so reading them here latched the row hidden for
-                    // good if Wi-Fi, Bluetooth and the battery were all not ready at startup.
-                    visible: (pill.wifiDev !== null && Flags.showWifi) || (pill.btAdapter !== null && Flags.showBt)
-                        || (Battery.present && Flags.showBattery)
+                    visible: Battery.present && Flags.showBattery
                     spacing: 12 * pill.s
-
-                    Item {
-                        id: wifiIcon
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: pill.wifiDev !== null && Flags.showWifi
-                        width: 15 * pill.s
-                        height: 15 * pill.s
-
-                        WifiGlyph {
-                            anchors.centerIn: parent
-                            s: pill.s
-                            level: pill.wifiLevel
-                            on: pill.wifiOn
-                            stroke: 1.7
-                        }
-
-                        MouseArea {
-                            id: wifiArea
-                            anchors.fill: parent
-                            anchors.margins: -6 * pill.s
-                            hoverEnabled: true
-                            enabled: hover.live
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: (e) => {
-                                if (e.button === Qt.RightButton) {
-                                    if (typeof Networking !== "undefined" && Networking)
-                                        Networking.wifiEnabled = !Networking.wifiEnabled;
-                                    return;
-                                }
-                                pill.requestSurface("wifi");
-                            }
-                            onContainsMouseChanged: if (containsMouse) pill.soulTarget = "wifi"
-                        }
-                    }
-
-                    Item {
-                        id: btIcon
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: pill.btAdapter !== null && Flags.showBt
-                        width: 15 * pill.s + (btLowPct.visible ? btLowPct.implicitWidth + 4 * pill.s : 0)
-                        height: 15 * pill.s
-
-                        GlyphIcon {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 15 * pill.s
-                            height: 15 * pill.s
-                            name: "bluetooth"
-                            color: btArea.containsMouse ? Theme.cream
-                                : (Peripherals.connectedCount > 0 ? Theme.vermLit
-                                : (pill.btOn ? Theme.iconDim : Qt.alpha(Theme.iconDim, 0.4)))
-                            stroke: 1.7
-                        }
-
-                        Text {
-                            id: btLowPct
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: Peripherals.lowestPct >= 0 && Peripherals.lowestPct <= Peripherals.lowAt
-                            text: Peripherals.lowestPct + "%"
-                            color: Theme.vermLit
-                            font.family: Theme.font
-                            font.pixelSize: 11 * pill.s
-                            font.weight: Font.DemiBold
-                            font.features: { "tnum": 1 }
-                        }
-
-                        MouseArea {
-                            id: btArea
-                            anchors.fill: parent
-                            anchors.margins: -6 * pill.s
-                            hoverEnabled: true
-                            enabled: hover.live
-                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: (e) => {
-                                if (e.button === Qt.RightButton) {
-                                    if (pill.btAdapter)
-                                        pill.btAdapter.enabled = !pill.btAdapter.enabled;
-                                    return;
-                                }
-                                pill.requestSurface("bt");
-                            }
-                            onContainsMouseChanged: if (containsMouse) pill.soulTarget = "bt"
-                        }
-                    }
 
                     Item {
                         id: batteryIcon
@@ -1733,32 +1771,6 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: pill.requestSurface("link")
                         onContainsMouseChanged: if (containsMouse) pill.soulTarget = "inbox"
-                    }
-                }
-
-                Item {
-                    id: mixerIcon
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: Flags.showMixer
-                    width: 17 * pill.s
-                    height: 17 * pill.s
-
-                    GlyphIcon {
-                        anchors.fill: parent
-                        name: "mixer"
-                        color: mixerArea.containsMouse ? Theme.cream : Theme.iconDim
-                        stroke: 1.7
-                    }
-
-                    MouseArea {
-                        id: mixerArea
-                        anchors.fill: parent
-                        anchors.margins: -6 * pill.s
-                        hoverEnabled: true
-                        enabled: hover.live
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: pill.requestSurface("mixer")
-                        onContainsMouseChanged: if (containsMouse) pill.soulTarget = "mixer"
                     }
                 }
 
