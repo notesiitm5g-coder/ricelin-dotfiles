@@ -1666,8 +1666,8 @@ Item {
                             visible: Battery.pluggedIn
                             anchors.top: battPct.top
                             anchors.right: battPct.right
-                            anchors.topMargin: -2 * pill.s
-                            anchors.rightMargin: -3 * pill.s
+                            anchors.topMargin: -4 * pill.s
+                            anchors.rightMargin: -5 * pill.s
                             width: 5 * pill.s
                             height: 5 * pill.s
                             radius: width / 2
