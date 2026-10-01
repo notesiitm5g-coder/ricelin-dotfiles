@@ -35,6 +35,11 @@ enable() {
     apply "$block"
 }
 
+lid_closed() {
+    busctl get-property org.freedesktop.login1 /org/freedesktop/login1 \
+        org.freedesktop.login1.Manager LidClosed 2>/dev/null | grep -q true
+}
+
 dpms() {
     if [ -n "${DRY_RUN:-}" ]; then echo "dpms: $1"; return; fi
     hyprctl dispatch "hl.dsp.dpms({action = \"$1\"})" >/dev/null
@@ -76,9 +81,12 @@ case "${1:-cycle}" in
             # Lock first (it grabs the screen for its reveal), then blank the panel.
             # logind normally suspends on lid close too, but it ignores the lid for
             # 30s after a resume, so without this a quick re-close left it lit.
+            # Only blank if the lid is *still* closed: logind often suspends during
+            # the wait, and this script resumes after the lid is already open again,
+            # where a late "off" left a dark, unwakeable screen.
             "$HOME/.config/hypr/scripts/lock.sh"
             sleep 1
-            dpms off
+            lid_closed && dpms off
         fi
         ;;
     lid-open)

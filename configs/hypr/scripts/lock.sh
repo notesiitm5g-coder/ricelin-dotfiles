@@ -9,7 +9,8 @@ dir="${XDG_RUNTIME_DIR:-/tmp}"
 for out in $(hyprctl monitors -j | jq -r '.[].name'); do
     [ -n "$out" ] || continue
     rm -f "$dir/ricelin-lock-$out.png"
-    grim -o "$out" "$dir/ricelin-lock-$out.png" 2>/dev/null &
+    # Capped: screencopy of a blanked output can stall, and the lock must still come up.
+    timeout 2 grim -o "$out" "$dir/ricelin-lock-$out.png" 2>/dev/null &
 done
 wait
 

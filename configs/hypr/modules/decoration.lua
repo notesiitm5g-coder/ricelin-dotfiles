@@ -19,6 +19,8 @@ hl.config({
     misc = {
         disable_hyprland_logo    = true,
         disable_splash_rendering = true,
+        -- Safety net: any key wakes a blanked screen, so a stray dpms off never strands the session.
+        key_press_enables_dpms   = true,
     },
     general = {
         gaps_in     = 6,
