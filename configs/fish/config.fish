@@ -26,5 +26,12 @@ function obs
 
     cd "$HOME/development/IITM/IIT-M"; or return
 
-    obsidian . >/dev/null 2>&1 &
+    # Launch through Hyprland so Obsidian outlives this terminal (ghostty kills
+    # everything in a surface's cgroup scope on close, setsid included), and hand
+    # it the agent socket so the vault's git sync can use the unlocked key.
+    if set -q HYPRLAND_INSTANCE_SIGNATURE
+        hyprctl eval "hl.dispatch(hl.dsp.exec_cmd(\"cd '$PWD' && SSH_AUTH_SOCK='$SSH_AUTH_SOCK' obsidian .\"))" >/dev/null
+    else
+        setsid -f obsidian . >/dev/null 2>&1
+    end
 end
