@@ -1547,7 +1547,8 @@ Item {
                     GlyphIcon {
                         anchors.fill: parent
                         name: "music"
-                        color: musicArea.containsMouse ? Theme.cream : (AudioFx.enabled && AudioFx.preset !== "flat" ? Theme.vermLit : Theme.iconDim)
+                        // Dim like the other icons; lights up only while something is playing.
+                        color: musicArea.containsMouse ? Theme.cream : ((Players.playing || Cava.active) ? Theme.vermLit : Theme.iconDim)
                         stroke: 1.7
                     }
 
