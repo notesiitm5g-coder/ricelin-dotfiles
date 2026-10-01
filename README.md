@@ -16,7 +16,7 @@ Everything you see is hand-written Quickshell. One pill bar that morphs into wha
 
 ![The pill surfaces](assets/shell.png)
 
-The pill becomes media and now playing, a Music page (live spectrum, 10-band PipeWire equalizer with presets, bass/treble/widen and per-device volume boost), a calendar, the wallpaper picker, clipboard history, an audio and brightness mixer, and network and bluetooth controls. There is also an app launcher, a lock screen, and [rishot](https://github.com/Gakuseei/rishot), my own screenshot and annotation tool, which lives in its own repo so you can read all of it there.
+The pill becomes media and now playing, a Music page (live spectrum, 10-band PipeWire equalizer with presets, bass/treble/widen and per-device volume boost up to 200%), a calendar, the wallpaper picker, clipboard history, an audio and brightness mixer, and network and bluetooth controls. There is also an app launcher, a lock screen, and [rishot](https://github.com/Gakuseei/rishot), my own screenshot and annotation tool, which lives in its own repo so you can read all of it there.
 
 ## Stack
 

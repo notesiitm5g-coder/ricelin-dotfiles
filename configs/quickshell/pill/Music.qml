@@ -362,15 +362,16 @@ PillSurface {
         Rectangle { width: parent.width; height: 1; color: Theme.hairSoft }
 
         // Per-device volume boost.
-        Item {
+        Column {
             width: parent.width
-            height: 30 * root.s
+            spacing: 8 * root.s
 
-            Column {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 3 * root.s
+            Item {
+                width: parent.width
+                height: boostTitle.implicitHeight
                 Text {
+                    id: boostTitle
+                    anchors.left: parent.left
                     text: "Volume boost"
                     color: Theme.cream
                     font.family: Theme.font
@@ -378,23 +379,26 @@ PillSurface {
                     font.weight: Font.DemiBold
                 }
                 Text {
+                    anchors.right: parent.right
+                    anchors.baseline: boostTitle.baseline
                     text: "For " + AudioFx.sinkLabel + " only. Above 100% can distort."
                     color: Theme.faint
                     font.family: Theme.font
                     font.pixelSize: 10 * root.s
-                    width: 230 * root.s
+                    width: parent.width - boostTitle.width - 16 * root.s
+                    horizontalAlignment: Text.AlignRight
                     elide: Text.ElideRight
                 }
             }
 
             SettingsSeg {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
                 s: root.s
                 options: [
                     { label: "Off", value: 1.0 },
                     { label: "125%", value: 1.25 },
-                    { label: "150%", value: 1.5 }
+                    { label: "150%", value: 1.5 },
+                    { label: "175%", value: 1.75 },
+                    { label: "200%", value: 2.0 }
                 ]
                 value: AudioFx.boostCap
                 onPicked: (v) => AudioFx.setBoost(v)

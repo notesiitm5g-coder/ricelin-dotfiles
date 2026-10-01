@@ -59,14 +59,22 @@ Singleton {
 
     PwObjectTracker { objects: root.sink ? [root.sink] : [] }
 
+    /**
+     * Pick a boost level for the current output: it becomes that device's volume
+     * cap and the volume jumps straight to it (wpctl, which allows >100%), so the
+     * boost is heard at once. Off drops the cap and pulls anything above 100% back.
+     * It acts on the device's own volume, so it works with the EQ on, off or on
+     * any preset.
+     */
     function setBoost(cap) {
         var m = Object.assign({}, root.boost || {});
         if (cap > 1) m[root.sinkName] = cap; else delete m[root.sinkName];
         root.boost = m;
         root.save();
-        // Pull the volume back under a lowered cap so it never sits above the limit.
-        if (root.sink && root.sink.audio && root.sink.audio.volume > Math.max(1, cap))
-            root.sink.audio.volume = Math.max(1, cap);
+        if (cap > 1)
+            Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", cap.toFixed(2)]);
+        else if (root.sink && root.sink.audio && root.sink.audio.volume > 1)
+            Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "1.0"]);
     }
 
     function setBand(i, db) {
