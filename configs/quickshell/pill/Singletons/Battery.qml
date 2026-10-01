@@ -23,6 +23,8 @@ Singleton {
     readonly property bool charging: state === UPowerDeviceState.Charging
     readonly property bool full: state === UPowerDeviceState.FullyCharged || pct >= 100
     readonly property bool discharging: state === UPowerDeviceState.Discharging
+    /** On AC: charging, held at a charge limit, or topped off. Drives the pill's charging dot. */
+    readonly property bool pluggedIn: charging || state === UPowerDeviceState.PendingCharge || state === UPowerDeviceState.FullyCharged
     readonly property bool low: !charging && pct <= 20
 
     readonly property real rateW: !dev ? 0

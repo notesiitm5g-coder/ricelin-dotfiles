@@ -1661,6 +1661,19 @@ Item {
                             font.features: { "tnum": 1 }
                         }
 
+                        /** Accent dot over the percentage while on AC, same badge shape as the inbox dot. */
+                        Rectangle {
+                            visible: Battery.pluggedIn
+                            anchors.top: battPct.top
+                            anchors.right: battPct.right
+                            anchors.topMargin: -2 * pill.s
+                            anchors.rightMargin: -3 * pill.s
+                            width: 5 * pill.s
+                            height: 5 * pill.s
+                            radius: width / 2
+                            color: Theme.vermLit
+                        }
+
                         MouseArea {
                             id: batteryArea
                             anchors.fill: parent
