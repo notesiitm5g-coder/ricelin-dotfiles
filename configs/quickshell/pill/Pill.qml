@@ -1560,7 +1560,11 @@ Item {
 
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: wifiIcon.visible || btIcon.visible || batteryIcon.visible
+                    // The children's own conditions, not child.visible: an invisible parent reports
+                    // its children invisible too, so reading them here latched the row hidden for
+                    // good if Wi-Fi, Bluetooth and the battery were all not ready at startup.
+                    visible: (pill.wifiDev !== null && Flags.showWifi) || (pill.btAdapter !== null && Flags.showBt)
+                        || (Battery.present && Flags.showBattery)
                     spacing: 12 * pill.s
 
                     Item {
