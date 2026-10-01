@@ -85,6 +85,7 @@ screenshot tool) makes sense; grab it from [rishot](https://github.com/Gakuseei/
 | `Super` + `B` | shuffle wallpaper and retheme |
 | `Super` + `E` | file manager |
 | `Super` + `T` | toggle floating |
+| `Super` + `D` | maximize below the pill / restore |
 | `Super` + `L` | lock |
 | `Super` + `R` | screen recording |
 | `Print` / `Super` + `Shift` + `S` | rishot |

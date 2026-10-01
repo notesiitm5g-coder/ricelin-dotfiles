@@ -2378,6 +2378,14 @@ Item {
         }
     }
 
+    /** Clicking the play/pause/track flash opens the full Now playing card. */
+    MouseArea {
+        anchors.fill: parent
+        enabled: pill.mode === "osd" && osd.kind === "track"
+        cursorShape: Qt.PointingHandCursor
+        onClicked: pill.requestSurface("media")
+    }
+
     Loader {
         id: toastLoader
         active: pill.toastActive

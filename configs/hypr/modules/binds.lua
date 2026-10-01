@@ -4,6 +4,8 @@ hl.bind(mod .. " + Q",         hl.dsp.window.close())
 hl.bind("CTRL + SHIFT + W",    hl.dsp.window.close())
 hl.bind(mod .. " + Return",    hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + F",         hl.dsp.window.fullscreen())
+-- Maximize toggle: fills the screen below the pill (keeps the reserved strip); again restores the old size
+hl.bind(mod .. " + D",         hl.dsp.window.fullscreen({ mode = "maximized" }))
 hl.bind(mod .. " + E",         hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + T",         hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mod .. " + M",         hl.dsp.exec_cmd(os.getenv("HOME") .. "/.config/hypr/scripts/minimize-toggle.sh"))
