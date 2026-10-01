@@ -35,6 +35,11 @@ enable() {
     apply "$block"
 }
 
+dpms() {
+    if [ -n "${DRY_RUN:-}" ]; then echo "dpms: $1"; return; fi
+    hyprctl dispatch "hl.dsp.dpms({action = \"$1\"})" >/dev/null
+}
+
 disable() {
     apply "hl.monitor({ output = \"$1\", disabled = true })"
 }
@@ -66,13 +71,19 @@ case "${1:-cycle}" in
         if [ -n "$laptop" ] && [ "$ext_on" -gt 0 ]; then
             disable "$laptop"
         elif [ -n "${DRY_RUN:-}" ]; then
-            echo "lock"
+            echo "lock"; echo "dpms: off"
         else
+            # Lock first (it grabs the screen for its reveal), then blank the panel.
+            # logind normally suspends on lid close too, but it ignores the lid for
+            # 30s after a resume, so without this a quick re-close left it lit.
             "$HOME/.config/hypr/scripts/lock.sh"
+            sleep 1
+            dpms off
         fi
         ;;
     lid-open)
         [ -n "$laptop" ] && [ "$laptop_on" != true ] && enable "$laptop"
+        dpms on
         ;;
     *)
         echo "usage: displays.sh [cycle|lid-close|lid-open]" >&2
