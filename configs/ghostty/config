@@ -16,6 +16,9 @@ mouse-hide-while-typing = true
 copy-on-select = clipboard
 keybind = ctrl+v=paste_from_clipboard
 confirm-close-surface = false
+# A new window (Super+Return joins the running instance) starts in $HOME instead of
+# inheriting the directory of whichever terminal was focused. Tabs/splits still inherit.
+window-inherit-working-directory = false
 
 # Warm Ricelin default theme. The wallpaper picker writes a matching
 # palette to the cache file below, which overrides everything here.
