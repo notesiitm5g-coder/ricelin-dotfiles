@@ -113,7 +113,8 @@ PillSurface {
             })
             value: AudioFx.editSink
             onRequestToggle: devicePick.open = !devicePick.open
-            onPicked: (v) => { AudioFx.selectEdit(v); devicePick.open = false; }
+            // Picking a device plays through it (the EQ follows) and shows its settings.
+            onPicked: (v) => { AudioFx.useOutput(v); devicePick.open = false; }
         }
 
         Text {

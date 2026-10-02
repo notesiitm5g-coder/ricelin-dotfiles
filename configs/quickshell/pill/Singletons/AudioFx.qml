@@ -64,6 +64,38 @@ Singleton {
         out.sort((a, b) => root.labelOf(a).localeCompare(root.labelOf(b)));
         return out;
     }
+    /** Make a device the output (the EQ follows it) and show its settings. */
+    function useOutput(name) {
+        for (var i = 0; i < root.outputs.length; i++)
+            if (root.outputs[i].name === name) {
+                Pipewire.preferredDefaultAudioSink = root.outputs[i];
+                break;
+            }
+        root.selectEdit(name);
+    }
+
+    /**
+     * Hand playback to a headset or speaker as it connects. WirePlumber keeps the
+     * saved default (often the laptop speaker), so a freshly paired Bluetooth or
+     * USB device would sit idle. Devices present at startup are just recorded.
+     */
+    property var knownOutputs: null
+    onOutputsChanged: {
+        var names = root.outputs.map(function (n) { return n.name; });
+        if (root.knownOutputs === null) {
+            if (names.length > 0) root.knownOutputs = names;
+            return;
+        }
+        for (var i = 0; i < root.outputs.length; i++) {
+            var n = root.outputs[i];
+            if (root.knownOutputs.indexOf(n.name) < 0 && /^(bluez_output|alsa_output\.usb)/.test(n.name)) {
+                Pipewire.preferredDefaultAudioSink = n;
+                break;
+            }
+        }
+        root.knownOutputs = names;
+    }
+
     function labelOf(n) { return n ? (n.description || n.nickname || n.name || "Output") : ""; }
 
     /** Which device the Music page is editing; follows the active output when that changes. */
