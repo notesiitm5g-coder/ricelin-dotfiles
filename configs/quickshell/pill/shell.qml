@@ -291,7 +291,17 @@ ShellRoot {
                     if (mons[i].name === modelData.name) {
                         var ws = mons[i].activeWorkspace;
                         var o = ws ? ws.lastIpcObject : null;
-                        return o ? !!o.hasfullscreen : false;
+                        if (!o || !o.hasfullscreen)
+                            return false;
+                        // Only real fullscreen (mode 2) hides the pill. A maximized window
+                        // (Super+D, mode 1) keeps the reserved strip, so the pill stays.
+                        var tls = ws.toplevels ? ws.toplevels.values : [];
+                        for (var j = 0; j < tls.length; j++) {
+                            var w = tls[j] ? tls[j].lastIpcObject : null;
+                            if (w && w.fullscreen >= 2)
+                                return true;
+                        }
+                        return false;
                     }
                 }
                 return false;
