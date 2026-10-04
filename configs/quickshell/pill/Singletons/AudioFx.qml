@@ -58,6 +58,57 @@ Singleton {
     }
     function isDraft(id) { return root.draft !== null && root.draft.id === id; }
 
+    /**
+     * Each mode's default shape: built-ins use the shipped values, user modes the
+     * values from their first save (`defaults`), older modes their current values.
+     */
+    function defaultsOf(id) {
+        for (var i = 0; i < root.builtinModes.length; i++)
+            if (root.builtinModes[i].id === id) return root.builtinModes[i];
+        var m = root.modeById(id);
+        if (!m) return null;
+        return m.defaults || { bands: m.bands, bass: m.bass, treble: m.treble, widen: m.widen };
+    }
+    function sameShape(a, b) {
+        if (!a || !b) return true;
+        if (Math.abs(a.bass - b.bass) > 0.01 || Math.abs(a.treble - b.treble) > 0.01 || Math.abs(a.widen - b.widen) > 0.01)
+            return false;
+        for (var i = 0; i < 10; i++)
+            if (Math.abs(Number(a.bands[i]) - Number(b.bands[i])) > 0.01) return false;
+        return true;
+    }
+    /** The selected mode (saved or as currently heard) differs from its default: show ↻. */
+    readonly property bool canReset: {
+        void root.bands; void root.bass; void root.treble; void root.widen; void root.preset; void root.modes;
+        if (root.isDraft(root.preset)) return false;
+        var d = root.defaultsOf(root.preset);
+        if (!d) return false;
+        var m = root.modeById(root.preset);
+        var live = { bands: root.bands, bass: root.bass, treble: root.treble, widen: root.widen };
+        return !root.sameShape(m, d) || !root.sameShape(live, d);
+    }
+    /** Put a mode back to its default and re-apply it on every device that uses it. */
+    function resetMode(id) {
+        var d = root.defaultsOf(id);
+        if (!d) return;
+        var vals = { bands: d.bands.slice(), bass: d.bass, treble: d.treble, widen: d.widen };
+        root.modes = root.modes.map(function (m) { return m.id === id ? Object.assign({}, m, vals) : m; });
+        root.reapplyMode(id, vals);
+        root.save();
+    }
+    /** Devices on mode `id` take `vals`; the page and filter follow if affected. */
+    function reapplyMode(id, vals) {
+        var pr = Object.assign({}, root.profiles || {});
+        for (var k in pr)
+            if (pr[k] && pr[k].preset === id)
+                pr[k] = Object.assign({}, pr[k], { bands: vals.bands.slice(), bass: vals.bass, treble: vals.treble, widen: vals.widen });
+        root.profiles = pr;
+        if (root.preset === id) {
+            root.bands = vals.bands.slice(); root.bass = vals.bass; root.treble = vals.treble; root.widen = vals.widen;
+        }
+        if (root.profileFor(root.sinkName).preset === id) root.push();
+    }
+
     /** The page's values differ from the selected mode's saved ones (or it's an unsaved draft). */
     readonly property bool dirty: {
         void root.bands; void root.bass; void root.treble; void root.widen; void root.preset; void root.modes; void root.draft;
@@ -83,10 +134,11 @@ Singleton {
     function saveMode() {
         var vals = { bands: root.bands.slice(), bass: root.bass, treble: root.treble, widen: root.widen };
         if (root.isDraft(root.preset)) {
-            root.modes = root.modes.concat([Object.assign({ id: root.draft.id, name: root.draft.name }, vals)]);
+            var first = { defaults: { bands: vals.bands.slice(), bass: vals.bass, treble: vals.treble, widen: vals.widen } };
+            root.modes = root.modes.concat([Object.assign({ id: root.draft.id, name: root.draft.name }, vals, first)]);
             root.draft = null;
         } else {
-            root.modes = root.modes.map(function (m) { return m.id === root.preset ? Object.assign({ id: m.id, name: m.name }, vals) : m; });
+            root.modes = root.modes.map(function (m) { return m.id === root.preset ? Object.assign({}, m, vals) : m; });
         }
         root.save();
     }
@@ -108,6 +160,8 @@ Singleton {
     function restoreDefaults() {
         var ids = root.builtinModes.map(function (m) { return m.id; });
         root.modes = root.cloneModes(root.builtinModes).concat(root.modes.filter(function (m) { return ids.indexOf(m.id) < 0; }));
+        for (var i = 0; i < root.builtinModes.length; i++)
+            root.reapplyMode(root.builtinModes[i].id, root.builtinModes[i]);
         root.save();
     }
 

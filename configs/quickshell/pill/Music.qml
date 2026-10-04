@@ -254,134 +254,183 @@ PillSurface {
 
             Repeater {
                 model: AudioFx.modeList
-                Rectangle {
-                    id: chip
+                Row {
+                    id: chipWrap
                     required property var modelData
-                    readonly property string modeId: modelData.id
-                    readonly property bool current: AudioFx.preset === modeId
-                    readonly property bool draft: AudioFx.isDraft(modeId)
-                    readonly property bool renaming: root.renamingId === modeId
-                    // Edit mode: hovering a chip turns it into a red minus; clicking removes it.
-                    readonly property bool armed: root.editingModes && chipArea.containsMouse && !renaming
-                    property bool leaving: false
+                    spacing: 4 * root.s
 
-                    height: 24 * root.s
-                    width: (renaming ? Math.max(70 * root.s, nameEdit.contentWidth + 22 * root.s) : chipText.implicitWidth + 22 * root.s)
-                    radius: height / 2
-                    color: armed ? Qt.alpha(root.removeRed, 0.85)
-                        : (current ? Qt.alpha(Theme.vermLit, 0.22) : (chipArea.containsMouse ? Theme.tileBg : "transparent"))
-                    border.width: 1
-                    border.color: armed || root.editingModes ? root.removeRed
-                        : (current ? Theme.vermLit : Theme.hairSoft)
-                    opacity: leaving ? 0 : 1
-                    scale: leaving ? 0.6 : 1
-                    Behavior on color { ColorAnimation { duration: 140 } }
-                    Behavior on border.color { ColorAnimation { duration: 140 } }
-                    Behavior on opacity { NumberAnimation { duration: 180 } }
-                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.InBack } }
-
-                    Text {
-                        id: chipText
-                        anchors.centerIn: parent
-                        visible: !chip.renaming
-                        opacity: chip.armed ? 0 : 1
-                        Behavior on opacity { NumberAnimation { duration: 120 } }
-                        // A dot marks unsaved changes on the selected mode (or an unsaved draft).
-                        text: chip.modelData.name + (chip.current && AudioFx.dirty ? " •" : "")
-                        color: chip.current ? Theme.cream : Theme.subtle
-                        font.family: Theme.font
-                        font.pixelSize: 11 * root.s
-                        font.weight: chip.current ? Font.DemiBold : Font.Medium
-                        font.italic: chip.draft
-                    }
-
-                    // The red minus the chip morphs into while armed.
                     Rectangle {
-                        anchors.centerIn: parent
-                        width: 12 * root.s
-                        height: 2 * root.s
+                        id: chip
+                        readonly property var modelData: chipWrap.modelData
+                        readonly property string modeId: modelData.id
+                        readonly property bool current: AudioFx.preset === modeId
+                        readonly property bool draft: AudioFx.isDraft(modeId)
+                        readonly property bool renaming: root.renamingId === modeId
+                        // Edit mode: hovering a chip turns it into a red minus; clicking removes it.
+                        readonly property bool armed: root.editingModes && chipArea.containsMouse && !renaming
+                        property bool leaving: false
+
+                        height: 24 * root.s
+                        width: (renaming ? Math.max(70 * root.s, nameEdit.contentWidth + 22 * root.s) : chipText.implicitWidth + 22 * root.s)
                         radius: height / 2
-                        color: Theme.bright
-                        opacity: chip.armed ? 1 : 0
-                        scale: chip.armed ? 1 : 0.3
-                        Behavior on opacity { NumberAnimation { duration: 120 } }
-                        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
-                    }
+                        color: armed ? Qt.alpha(root.removeRed, 0.85)
+                            : (current ? Qt.alpha(Theme.vermLit, 0.22) : (chipArea.containsMouse ? Theme.tileBg : "transparent"))
+                        border.width: 1
+                        border.color: armed || root.editingModes ? root.removeRed
+                            : (current ? Theme.vermLit : Theme.hairSoft)
+                        opacity: leaving ? 0 : 1
+                        scale: leaving ? 0.6 : 1
+                        Behavior on color { ColorAnimation { duration: 140 } }
+                        Behavior on border.color { ColorAnimation { duration: 140 } }
+                        Behavior on opacity { NumberAnimation { duration: 180 } }
+                        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.InBack } }
 
-                    // Small minus badge on every chip while editing.
-                    Rectangle {
-                        visible: root.editingModes && !chip.armed && !chip.renaming
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.rightMargin: -4 * root.s
-                        anchors.topMargin: -4 * root.s
-                        width: 12 * root.s
-                        height: 12 * root.s
-                        radius: width / 2
-                        color: root.removeRed
+                        Text {
+                            id: chipText
+                            anchors.centerIn: parent
+                            visible: !chip.renaming
+                            opacity: chip.armed ? 0 : 1
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
+                            // A dot marks unsaved changes on the selected mode (or an unsaved draft).
+                            text: chip.modelData.name + (chip.current && AudioFx.dirty ? " •" : "")
+                            color: chip.current ? Theme.cream : Theme.subtle
+                            font.family: Theme.font
+                            font.pixelSize: 11 * root.s
+                            font.weight: chip.current ? Font.DemiBold : Font.Medium
+                            font.italic: chip.draft
+                        }
+
+                        // The red minus the chip morphs into while armed.
                         Rectangle {
                             anchors.centerIn: parent
-                            width: 6 * root.s
-                            height: 1.5 * root.s
+                            width: 12 * root.s
+                            height: 2 * root.s
+                            radius: height / 2
                             color: Theme.bright
+                            opacity: chip.armed ? 1 : 0
+                            scale: chip.armed ? 1 : 0.3
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
+                            Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
                         }
-                    }
 
-                    TextInput {
-                        id: nameEdit
-                        anchors.centerIn: parent
-                        visible: chip.renaming
-                        color: Theme.cream
-                        selectionColor: Theme.verm
-                        font.family: Theme.font
-                        font.pixelSize: 11 * root.s
-                        font.weight: Font.DemiBold
-                        maximumLength: 24
-                        onVisibleChanged: if (visible) {
-                            text = chip.modelData.name;
-                            selectAll();
-                            Qt.callLater(nameEdit.forceActiveFocus);
-                        }
-                        // Close the editor before renaming: the rename rebuilds the chips, which
-                        // would drop the rest of this handler with the old delegate.
-                        function finish() {
-                            var id = chip.modeId, name = nameEdit.text;
-                            root.renamingId = "";
-                            AudioFx.renameMode(id, name);
-                        }
-                        onAccepted: finish()
-                        onActiveFocusChanged: if (!activeFocus && chip.renaming) finish()
-                        Keys.onEscapePressed: (e) => { root.renamingId = ""; e.accepted = true; }
-                    }
-
-                    Timer {
-                        id: removeTimer
-                        interval: 190
-                        onTriggered: AudioFx.removeMode(chip.modeId)
-                    }
-
-                    MouseArea {
-                        id: chipArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        enabled: !chip.renaming
-                        cursorShape: Qt.PointingHandCursor
-                        property int taps: 0
-                        Timer { id: tapReset; interval: 450; onTriggered: chipArea.taps = 0 }
-                        onClicked: {
-                            if (root.editingModes) {
-                                chip.leaving = true;
-                                removeTimer.restart();
-                                return;
+                        // Small minus badge on every chip while editing.
+                        Rectangle {
+                            visible: root.editingModes && !chip.armed && !chip.renaming
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.rightMargin: -4 * root.s
+                            anchors.topMargin: -4 * root.s
+                            width: 12 * root.s
+                            height: 12 * root.s
+                            radius: width / 2
+                            color: root.removeRed
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 6 * root.s
+                                height: 1.5 * root.s
+                                color: Theme.bright
                             }
-                            taps += 1;
-                            tapReset.restart();
-                            if (taps === 1)
-                                AudioFx.applyPreset(chip.modeId);
-                            else if (taps >= 3) {
-                                taps = 0;
-                                root.renamingId = chip.modeId;   // triple click renames
+                        }
+
+                        TextInput {
+                            id: nameEdit
+                            anchors.centerIn: parent
+                            visible: chip.renaming
+                            color: Theme.cream
+                            selectionColor: Theme.verm
+                            font.family: Theme.font
+                            font.pixelSize: 11 * root.s
+                            font.weight: Font.DemiBold
+                            maximumLength: 24
+                            onVisibleChanged: if (visible) {
+                                text = chip.modelData.name;
+                                selectAll();
+                                Qt.callLater(nameEdit.forceActiveFocus);
                             }
+                            // Close the editor before renaming: the rename rebuilds the chips, which
+                            // would drop the rest of this handler with the old delegate.
+                            function finish() {
+                                var id = chip.modeId, name = nameEdit.text;
+                                root.renamingId = "";
+                                AudioFx.renameMode(id, name);
+                            }
+                            onAccepted: finish()
+                            onActiveFocusChanged: if (!activeFocus && chip.renaming) finish()
+                            Keys.onEscapePressed: (e) => { root.renamingId = ""; e.accepted = true; }
+                        }
+
+                        Timer {
+                            id: removeTimer
+                            interval: 190
+                            onTriggered: AudioFx.removeMode(chip.modeId)
+                        }
+
+                        MouseArea {
+                            id: chipArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: !chip.renaming
+                            cursorShape: Qt.PointingHandCursor
+                            property int taps: 0
+                            Timer { id: tapReset; interval: 450; onTriggered: chipArea.taps = 0 }
+                            onClicked: {
+                                if (root.editingModes) {
+                                    chip.leaving = true;
+                                    removeTimer.restart();
+                                    return;
+                                }
+                                taps += 1;
+                                tapReset.restart();
+                                if (taps === 1)
+                                    AudioFx.applyPreset(chip.modeId);
+                                else if (taps >= 3) {
+                                    taps = 0;
+                                    root.renamingId = chip.modeId;   // triple click renames
+                                }
+                            }
+                        }
+                    }
+
+                    // ↻ restore this mode to its default (shown on the selected mode when it differs).
+                    Rectangle {
+                        id: resetBtn
+                        visible: chip.current && AudioFx.canReset && !root.editingModes
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 24 * root.s
+                        height: 24 * root.s
+                        radius: width / 2
+                        color: resetArea.containsMouse ? Theme.tileBg : "transparent"
+                        border.width: 1
+                        border.color: resetArea.containsMouse ? Theme.vermLit : Theme.hairSoft
+                        GlyphIcon {
+                            id: resetGlyph
+                            anchors.centerIn: parent
+                            width: 13 * root.s
+                            height: 13 * root.s
+                            name: "rotate-ccw"
+                            color: resetArea.containsMouse ? Theme.cream : Theme.subtle
+                            stroke: 2
+                            RotationAnimation on rotation {
+                                id: spin
+                                running: false
+                                from: 0
+                                to: -360
+                                duration: 450
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                        MouseArea {
+                            id: resetArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { spin.restart(); resetTimer.restart(); }
+                        }
+                        // Let the arrow turn before the button hides with the reset.
+                        Timer {
+                            id: resetTimer
+                            interval: 420
+                            onTriggered: AudioFx.resetMode(chip.modeId)
                         }
                     }
                 }
