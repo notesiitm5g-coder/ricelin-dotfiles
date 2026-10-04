@@ -175,6 +175,8 @@ Singleton {
     property real widen: 0
     /** { "<sink node.name>": cap } for boosted outputs only. */
     property var boost: ({})
+    /** { "<sink node.name>": volume } last level per device (can exceed 1.0 when boosted). */
+    property var volumes: ({})
     /** { "<sink node.name>": { enabled, preset, bands, bass, treble, widen } }. Missing = flat, on. */
     property var profiles: ({})
     property var legacy: null
@@ -295,9 +297,56 @@ Singleton {
         root.selectEdit(root.sinkName);
         root.push();
         root.pushEnabled();
+        root.restoreVolume();
     }
 
     PwObjectTracker { objects: root.sink ? [root.sink] : [] }
+
+    /**
+     * Remember each device's volume (boosted levels included) and put it back on
+     * startup, shell reload or reconnect, so a 150% boost doesn't come back at
+     * whatever the session restored. Changes are recorded only after the restore
+     * window, so a start-up clamp is never saved over the real level.
+     */
+    property bool volumeRestoring: false
+    Connections {
+        target: root.sink && root.sink.audio ? root.sink.audio : null
+        function onVolumesChanged() { if (!root.volumeRestoring) volSaveTimer.restart(); }
+    }
+    Timer {
+        id: volSaveTimer
+        interval: 600
+        onTriggered: {
+            if (!root.sink || !root.sink.audio || root.sinkName.length === 0) return;
+            var v = Math.round(root.sink.audio.volume * 100) / 100;
+            if (root.volumes[root.sinkName] === v) return;
+            var m = Object.assign({}, root.volumes);
+            m[root.sinkName] = v;
+            root.volumes = m;
+            root.save();
+        }
+    }
+    function restoreVolume() {
+        var v = root.volumes[root.sinkName];
+        if (typeof v !== "number") return;
+        root.volumeRestoring = true;
+        volRestoreTimer.target = v;
+        volRestoreTimer.restart();
+    }
+    // A beat after the device appears, so WirePlumber's own restore has landed first.
+    Timer {
+        id: volRestoreTimer
+        property real target: 1
+        interval: 1200
+        onTriggered: {
+            var cur = root.sink && root.sink.audio ? root.sink.audio.volume : -1;
+            var v = Math.min(volRestoreTimer.target, Math.max(1, root.boostCap));
+            if (cur >= 0 && Math.abs(cur - v) > 0.01)
+                Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", v.toFixed(2)]);
+            volUnlock.restart();
+        }
+    }
+    Timer { id: volUnlock; interval: 800; onTriggered: root.volumeRestoring = false }
 
     /**
      * Pick a boost level for the current output: it becomes that device's volume
@@ -426,7 +475,7 @@ Singleton {
     Timer {
         id: saveTimer
         interval: 300
-        onTriggered: stateFile.setText(JSON.stringify({ modes: root.modes, profiles: root.profiles, boost: root.boost }, null, 2) + "\n")
+        onTriggered: stateFile.setText(JSON.stringify({ modes: root.modes, profiles: root.profiles, boost: root.boost, volumes: root.volumes }, null, 2) + "\n")
     }
 
     // Read once at startup; the pill is the only writer.
@@ -439,6 +488,7 @@ Singleton {
             try {
                 var d = JSON.parse(stateFile.text());
                 if (d.boost && typeof d.boost === "object") root.boost = d.boost;
+                if (d.volumes && typeof d.volumes === "object") root.volumes = d.volumes;
                 if (Array.isArray(d.modes)) root.modes = d.modes.filter(function (m) { return m && m.id && Array.isArray(m.bands) && m.bands.length === 10; });
                 if (d.profiles && typeof d.profiles === "object") root.profiles = d.profiles;
                 // Pre-profile files kept one global EQ: hand it to the first active output.
