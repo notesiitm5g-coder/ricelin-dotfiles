@@ -9,8 +9,11 @@ import Quickshell.Hyprland
  * The one now-playing source the pill views read: the media surface, the source
  * switcher and the OSD. Selection is by player object so the
  * pick survives metadata churn and falls away when that player's process dies.
- * `active` is the player you last picked by hand, else the one auto-tracked by
- * playback, which holds against a background tab that autoplays.
+ * `active` (what the media keys and earbud buttons control) is, in order: a
+ * player picked by hand until some other player starts; else the player that
+ * most recently started playing; else, with nothing playing, the one paused
+ * most recently. "Recently" is a per-player touch time, so a track paused long
+ * ago never outranks what you were just listening to.
  */
 Singleton {
     id: root
@@ -52,7 +55,15 @@ Singleton {
     }
 
     property var manualActive: null
-    property var preferred: null
+    /** { dbusName: ms } last time each player started/stopped playing or was picked. */
+    property var touched: ({})
+    function touch(p) {
+        if (!p || !p.dbusName) return;
+        var m = Object.assign({}, root.touched);
+        m[p.dbusName] = Date.now();
+        root.touched = m;
+    }
+    function touchedAt(p) { return (p && p.dbusName && root.touched[p.dbusName]) || 0; }
 
     property bool ready: false
     Component.onCompleted: {
@@ -64,37 +75,31 @@ Singleton {
     onListChanged: {
         if (manualActive && list.indexOf(manualActive) < 0)
             manualActive = null;
-        if (preferred && list.indexOf(preferred) < 0)
-            preferred = null;
     }
 
-    /**
-     * A playing player always wins, with the recently-played one preferred while
-     * it plays. Only when nothing is playing do we hold the paused preferred, so
-     * pausing your music doesn't hand the surface to a paused background tab, yet
-     * actually starting another player switches to it.
-     */
+    /** Most recently started of the playing players; else most recently paused real player. */
     readonly property var autoPick: {
+        void root.touched;
         var l = root.list;
         if (l.length === 0)
             return null;
-        if (preferred && l.indexOf(preferred) >= 0 && preferred.isPlaying)
-            return preferred;
+        var best = null;
         for (var i = 0; i < l.length; i++)
-            if (l[i].isPlaying && !isIdle(l[i]))
-                return l[i];
-        if (preferred && l.indexOf(preferred) >= 0 && !isIdle(preferred))
-            return preferred;
+            if (l[i].isPlaying && !isIdle(l[i]) && (!best || touchedAt(l[i]) > touchedAt(best)))
+                best = l[i];
+        if (best)
+            return best;
         for (var j = 0; j < l.length; j++)
-            if (!isIdle(l[j]) && l[j].trackTitle)
-                return l[j];
-        return l[0];
+            if (!isIdle(l[j]) && (!best || touchedAt(l[j]) > touchedAt(best)))
+                best = l[j];
+        return best || l[0];
     }
 
     readonly property var active: (manualActive && list.indexOf(manualActive) >= 0 && !isIdle(manualActive)) ? manualActive : autoPick
 
     function select(p) {
         root.manualActive = (p && list.indexOf(p) >= 0) ? p : null;
+        root.touch(root.manualActive);
     }
 
     Instantiator {
@@ -108,9 +113,11 @@ Singleton {
             onPlayingChanged: {
                 if (!Players.ready)
                     return;
+                Players.touch(modelData);
                 if (playing) {
-                    if (!Players.isIdle(modelData) && !Players.otherPlaying(modelData))
-                        Players.preferred = modelData;
+                    // Starting another player ends a hand pick of a different one.
+                    if (Players.manualActive && Players.manualActive !== modelData)
+                        Players.manualActive = null;
                     Players.announce(modelData);
                 } else if (modelData === Players.active) {
                     Players.announce(modelData);
