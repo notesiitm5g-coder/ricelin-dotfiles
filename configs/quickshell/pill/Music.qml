@@ -20,6 +20,13 @@ PillSurface {
 
     signal requestSurface(string name)
 
+    /** Modes edit state: Edit shows red minus badges, hovering a mode arms it, click removes. */
+    property bool editingModes: false
+    /** Id of the mode chip being renamed inline (triple click), or "". */
+    property string renamingId: ""
+    readonly property color removeRed: "#e0533f"
+    onOpenChanged: if (!open) { editingModes = false; renamingId = ""; }
+
     implicitHeight: content.implicitHeight
     ameForm: "off"
 
@@ -187,39 +194,222 @@ PillSurface {
             font.pixelSize: 10.5 * root.s
         }
 
-        // Presets.
-        Row {
+        // Modes: header (Save / Edit, or Restore defaults / Done), then the chips and +.
+        Item {
+            width: parent.width
+            height: 18 * root.s
+            opacity: AudioFx.enabled ? 1 : 0.45
+
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.editingModes ? "EDIT MODES" : "MODES"
+                color: root.editingModes ? root.removeRed : Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 9.5 * root.s
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1.4 * root.s
+            }
+
+            Row {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 14 * root.s
+
+                Repeater {
+                    model: root.editingModes
+                        ? [{ key: "restore", label: "Restore defaults" }, { key: "done", label: "Done" }]
+                        : (AudioFx.dirty ? [{ key: "save", label: "Save" }, { key: "edit", label: "Edit" }] : [{ key: "edit", label: "Edit" }])
+                    Text {
+                        id: act
+                        required property var modelData
+                        text: modelData.label
+                        color: actArea.containsMouse ? Theme.cream
+                            : (modelData.key === "save" || modelData.key === "done" ? Theme.vermLit : Theme.subtle)
+                        font.family: Theme.font
+                        font.pixelSize: 11 * root.s
+                        font.weight: Font.DemiBold
+                        MouseArea {
+                            id: actArea
+                            anchors.fill: parent
+                            anchors.margins: -5 * root.s
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (act.modelData.key === "save") AudioFx.saveMode();
+                                else if (act.modelData.key === "edit") root.editingModes = true;
+                                else if (act.modelData.key === "done") root.editingModes = false;
+                                else if (act.modelData.key === "restore") AudioFx.restoreDefaults();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Flow {
+            width: parent.width
             spacing: 6 * root.s
             opacity: AudioFx.enabled ? 1 : 0.45
+
             Repeater {
-                model: AudioFx.presetOrder.concat(AudioFx.preset === "custom" ? ["custom"] : [])
+                model: AudioFx.modeList
                 Rectangle {
                     id: chip
-                    required property string modelData
-                    readonly property bool current: AudioFx.preset === modelData
+                    required property var modelData
+                    readonly property string modeId: modelData.id
+                    readonly property bool current: AudioFx.preset === modeId
+                    readonly property bool draft: AudioFx.isDraft(modeId)
+                    readonly property bool renaming: root.renamingId === modeId
+                    // Edit mode: hovering a chip turns it into a red minus; clicking removes it.
+                    readonly property bool armed: root.editingModes && chipArea.containsMouse && !renaming
+                    property bool leaving: false
+
                     height: 24 * root.s
-                    width: chipText.implicitWidth + 22 * root.s
+                    width: (renaming ? Math.max(70 * root.s, nameEdit.contentWidth + 22 * root.s) : chipText.implicitWidth + 22 * root.s)
                     radius: height / 2
-                    color: current ? Qt.alpha(Theme.vermLit, 0.22) : (chipArea.containsMouse ? Theme.tileBg : "transparent")
+                    color: armed ? Qt.alpha(root.removeRed, 0.85)
+                        : (current ? Qt.alpha(Theme.vermLit, 0.22) : (chipArea.containsMouse ? Theme.tileBg : "transparent"))
                     border.width: 1
-                    border.color: current ? Theme.vermLit : Theme.hairSoft
+                    border.color: armed || root.editingModes ? root.removeRed
+                        : (current ? Theme.vermLit : Theme.hairSoft)
+                    opacity: leaving ? 0 : 1
+                    scale: leaving ? 0.6 : 1
+                    Behavior on color { ColorAnimation { duration: 140 } }
+                    Behavior on border.color { ColorAnimation { duration: 140 } }
+                    Behavior on opacity { NumberAnimation { duration: 180 } }
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.InBack } }
+
                     Text {
                         id: chipText
                         anchors.centerIn: parent
-                        text: AudioFx.presetLabels[chip.modelData] || chip.modelData
+                        visible: !chip.renaming
+                        opacity: chip.armed ? 0 : 1
+                        Behavior on opacity { NumberAnimation { duration: 120 } }
+                        // A dot marks unsaved changes on the selected mode (or an unsaved draft).
+                        text: chip.modelData.name + (chip.current && AudioFx.dirty ? " •" : "")
                         color: chip.current ? Theme.cream : Theme.subtle
                         font.family: Theme.font
                         font.pixelSize: 11 * root.s
                         font.weight: chip.current ? Font.DemiBold : Font.Medium
+                        font.italic: chip.draft
                     }
+
+                    // The red minus the chip morphs into while armed.
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 12 * root.s
+                        height: 2 * root.s
+                        radius: height / 2
+                        color: Theme.bright
+                        opacity: chip.armed ? 1 : 0
+                        scale: chip.armed ? 1 : 0.3
+                        Behavior on opacity { NumberAnimation { duration: 120 } }
+                        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
+                    }
+
+                    // Small minus badge on every chip while editing.
+                    Rectangle {
+                        visible: root.editingModes && !chip.armed && !chip.renaming
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.rightMargin: -4 * root.s
+                        anchors.topMargin: -4 * root.s
+                        width: 12 * root.s
+                        height: 12 * root.s
+                        radius: width / 2
+                        color: root.removeRed
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 6 * root.s
+                            height: 1.5 * root.s
+                            color: Theme.bright
+                        }
+                    }
+
+                    TextInput {
+                        id: nameEdit
+                        anchors.centerIn: parent
+                        visible: chip.renaming
+                        color: Theme.cream
+                        selectionColor: Theme.verm
+                        font.family: Theme.font
+                        font.pixelSize: 11 * root.s
+                        font.weight: Font.DemiBold
+                        maximumLength: 24
+                        onVisibleChanged: if (visible) {
+                            text = chip.modelData.name;
+                            selectAll();
+                            Qt.callLater(nameEdit.forceActiveFocus);
+                        }
+                        // Close the editor before renaming: the rename rebuilds the chips, which
+                        // would drop the rest of this handler with the old delegate.
+                        function finish() {
+                            var id = chip.modeId, name = nameEdit.text;
+                            root.renamingId = "";
+                            AudioFx.renameMode(id, name);
+                        }
+                        onAccepted: finish()
+                        onActiveFocusChanged: if (!activeFocus && chip.renaming) finish()
+                        Keys.onEscapePressed: (e) => { root.renamingId = ""; e.accepted = true; }
+                    }
+
+                    Timer {
+                        id: removeTimer
+                        interval: 190
+                        onTriggered: AudioFx.removeMode(chip.modeId)
+                    }
+
                     MouseArea {
                         id: chipArea
                         anchors.fill: parent
                         hoverEnabled: true
+                        enabled: !chip.renaming
                         cursorShape: Qt.PointingHandCursor
-                        enabled: chip.modelData !== "custom"
-                        onClicked: AudioFx.applyPreset(chip.modelData)
+                        property int taps: 0
+                        Timer { id: tapReset; interval: 450; onTriggered: chipArea.taps = 0 }
+                        onClicked: {
+                            if (root.editingModes) {
+                                chip.leaving = true;
+                                removeTimer.restart();
+                                return;
+                            }
+                            taps += 1;
+                            tapReset.restart();
+                            if (taps === 1)
+                                AudioFx.applyPreset(chip.modeId);
+                            else if (taps >= 3) {
+                                taps = 0;
+                                root.renamingId = chip.modeId;   // triple click renames
+                            }
+                        }
                     }
+                }
+            }
+
+            // + : new flat mode (kept only if saved).
+            Rectangle {
+                visible: !root.editingModes
+                height: 24 * root.s
+                width: 24 * root.s
+                radius: height / 2
+                color: plusArea.containsMouse ? Theme.tileBg : "transparent"
+                border.width: 1
+                border.color: plusArea.containsMouse ? Theme.vermLit : Theme.hairSoft
+                Text {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: -1 * root.s
+                    text: "+"
+                    color: plusArea.containsMouse ? Theme.cream : Theme.subtle
+                    font.family: Theme.font
+                    font.pixelSize: 15 * root.s
+                }
+                MouseArea {
+                    id: plusArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: AudioFx.newMode()
                 }
             }
         }

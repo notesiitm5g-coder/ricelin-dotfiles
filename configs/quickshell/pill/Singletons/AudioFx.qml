@@ -26,16 +26,90 @@ Singleton {
     readonly property real minDb: -12
     readonly property real maxDb: 12
 
-    /** Shipped shapes. "custom" is whatever the user dragged last. */
-    readonly property var presets: ({
-        "flat":   { bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: 0, treble: 0, widen: 0 },
-        "bass":   { bands: [5, 4, 3, 1, 0, 0, 0, 0, 0, 0], bass: 4, treble: 0, widen: 0 },
-        "vocal":  { bands: [-2, -2, -1, 0, 2, 3, 3, 2, 0, -1], bass: 0, treble: 0, widen: 0 },
-        "hd":     { bands: [2, 1, 0, 0, -1, 0, 1, 2, 3, 3], bass: 2, treble: 2, widen: 0.25 },
-        "cinema": { bands: [4, 3, 1, 0, -1, 0, 1, 1, 2, 2], bass: 3, treble: 1, widen: 0.6 }
-    })
-    readonly property var presetOrder: ["flat", "bass", "vocal", "hd", "cinema"]
-    readonly property var presetLabels: ({ flat: "Flat", bass: "Bass", vocal: "Vocal", hd: "HD", cinema: "Cinema", custom: "Custom" })
+    /**
+     * EQ modes: an ordered, user-editable library shared by every device. The five
+     * shipped shapes seed it (and come back with restoreDefaults()); all of them can
+     * be renamed or removed. A device profile points at a mode by id via `preset`
+     * and carries its own live values, which may differ from the mode until saved.
+     */
+    readonly property var builtinModes: [
+        { id: "flat",   name: "Flat",   bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: 0, treble: 0, widen: 0 },
+        { id: "bass",   name: "Bass",   bands: [5, 4, 3, 1, 0, 0, 0, 0, 0, 0], bass: 4, treble: 0, widen: 0 },
+        { id: "vocal",  name: "Vocal",  bands: [-2, -2, -1, 0, 2, 3, 3, 2, 0, -1], bass: 0, treble: 0, widen: 0 },
+        { id: "hd",     name: "HD",     bands: [2, 1, 0, 0, -1, 0, 1, 2, 3, 3], bass: 2, treble: 2, widen: 0.25 },
+        { id: "cinema", name: "Cinema", bands: [4, 3, 1, 0, -1, 0, 1, 1, 2, 2], bass: 3, treble: 1, widen: 0.6 }
+    ]
+    property var modes: root.cloneModes(root.builtinModes)
+    /** A mode made with + that exists only on the page until it is saved. */
+    property var draft: null
+    /** Saved modes plus the unsaved draft, in display order. */
+    readonly property var modeList: root.draft ? root.modes.concat([root.draft]) : root.modes
+
+    function cloneModes(list) {
+        return list.map(function (m) {
+            return { id: m.id, name: m.name, bands: m.bands.slice(), bass: m.bass, treble: m.treble, widen: m.widen };
+        });
+    }
+    function modeById(id) {
+        if (root.draft && root.draft.id === id) return root.draft;
+        for (var i = 0; i < root.modes.length; i++)
+            if (root.modes[i].id === id) return root.modes[i];
+        return null;
+    }
+    function isDraft(id) { return root.draft !== null && root.draft.id === id; }
+
+    /** The page's values differ from the selected mode's saved ones (or it's an unsaved draft). */
+    readonly property bool dirty: {
+        void root.bands; void root.bass; void root.treble; void root.widen; void root.preset; void root.modes; void root.draft;
+        if (root.isDraft(root.preset)) return true;
+        var m = root.modeById(root.preset);
+        if (!m) return false;
+        if (Math.abs(m.bass - root.bass) > 0.01 || Math.abs(m.treble - root.treble) > 0.01 || Math.abs(m.widen - root.widen) > 0.01)
+            return true;
+        for (var i = 0; i < 10; i++)
+            if (Math.abs(Number(m.bands[i]) - Number(root.bands[i] || 0)) > 0.01) return true;
+        return false;
+    }
+
+    /** + : a new flat mode, selected straight away, kept only if saved. */
+    function newMode() {
+        var n = 1;
+        var names = root.modes.map(function (m) { return m.name; });
+        while (names.indexOf("Custom " + n) >= 0) n++;
+        root.draft = { id: "m" + Date.now(), name: "Custom " + n, bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: 0, treble: 0, widen: 0 };
+        root.applyPreset(root.draft.id);
+    }
+    /** Save: the page's values become the selected mode (a draft joins the library). */
+    function saveMode() {
+        var vals = { bands: root.bands.slice(), bass: root.bass, treble: root.treble, widen: root.widen };
+        if (root.isDraft(root.preset)) {
+            root.modes = root.modes.concat([Object.assign({ id: root.draft.id, name: root.draft.name }, vals)]);
+            root.draft = null;
+        } else {
+            root.modes = root.modes.map(function (m) { return m.id === root.preset ? Object.assign({ id: m.id, name: m.name }, vals) : m; });
+        }
+        root.save();
+    }
+    function renameMode(id, name) {
+        name = (name || "").trim();
+        if (name.length === 0) return;
+        if (root.isDraft(id)) { root.draft = Object.assign({}, root.draft, { name: name }); return; }
+        root.modes = root.modes.map(function (m) { return m.id === id ? Object.assign({}, m, { name: name }) : m; });
+        root.save();
+    }
+    function removeMode(id) {
+        if (root.isDraft(id)) root.draft = null;
+        else root.modes = root.modes.filter(function (m) { return m.id !== id; });
+        // The sound stays as it is; it just no longer belongs to a mode.
+        if (root.preset === id) { root.preset = ""; root.commit(false); }
+        root.save();
+    }
+    /** Bring the five shipped modes back (renamed/removed ones reset), keeping user modes. */
+    function restoreDefaults() {
+        var ids = root.builtinModes.map(function (m) { return m.id; });
+        root.modes = root.cloneModes(root.builtinModes).concat(root.modes.filter(function (m) { return ids.indexOf(m.id) < 0; }));
+        root.save();
+    }
 
     // The profile being edited on the Music page (editSink's), not necessarily the
     // one playing: the filter always runs the active output's profile.
@@ -118,7 +192,7 @@ Singleton {
         var p = (root.profiles || {})[name];
         return {
             enabled: p && typeof p.enabled === "boolean" ? p.enabled : true,
-            preset: p && p.preset ? p.preset : "flat",
+            preset: p && typeof p.preset === "string" ? p.preset : "flat",
             bands: p && Array.isArray(p.bands) && p.bands.length === 10 ? p.bands : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             bass: p && typeof p.bass === "number" ? p.bass : 0,
             treble: p && typeof p.treble === "number" ? p.treble : 0,
@@ -198,16 +272,18 @@ Singleton {
         while (b.length < 10) b.push(0);
         b[i] = Math.max(root.minDb, Math.min(root.maxDb, Math.round(db * 2) / 2));
         root.bands = b;
-        root.preset = "custom";
         root.commit(false);
     }
-    function setBass(db) { root.bass = Math.round(db * 2) / 2; root.preset = "custom"; root.commit(false); }
-    function setTreble(db) { root.treble = Math.round(db * 2) / 2; root.preset = "custom"; root.commit(false); }
-    function setWiden(w) { root.widen = Math.max(0, Math.min(1, w)); root.preset = "custom"; root.commit(false); }
+    function setBass(db) { root.bass = Math.round(db * 2) / 2; root.commit(false); }
+    function setTreble(db) { root.treble = Math.round(db * 2) / 2; root.commit(false); }
+    function setWiden(w) { root.widen = Math.max(0, Math.min(1, w)); root.commit(false); }
 
+    /** Select a mode: its saved values replace the page's (unsaved edits are dropped). */
     function applyPreset(name) {
-        var p = root.presets[name];
+        var p = root.modeById(name);
         if (!p) return;
+        // Leaving an unsaved draft discards it.
+        if (root.draft && root.draft.id !== name) root.draft = null;
         root.bands = p.bands.slice();
         root.bass = p.bass;
         root.treble = p.treble;
@@ -296,7 +372,7 @@ Singleton {
     Timer {
         id: saveTimer
         interval: 300
-        onTriggered: stateFile.setText(JSON.stringify({ profiles: root.profiles, boost: root.boost }, null, 2) + "\n")
+        onTriggered: stateFile.setText(JSON.stringify({ modes: root.modes, profiles: root.profiles, boost: root.boost }, null, 2) + "\n")
     }
 
     // Read once at startup; the pill is the only writer.
@@ -309,6 +385,7 @@ Singleton {
             try {
                 var d = JSON.parse(stateFile.text());
                 if (d.boost && typeof d.boost === "object") root.boost = d.boost;
+                if (Array.isArray(d.modes)) root.modes = d.modes.filter(function (m) { return m && m.id && Array.isArray(m.bands) && m.bands.length === 10; });
                 if (d.profiles && typeof d.profiles === "object") root.profiles = d.profiles;
                 // Pre-profile files kept one global EQ: hand it to the first active output.
                 else if (Array.isArray(d.bands))
