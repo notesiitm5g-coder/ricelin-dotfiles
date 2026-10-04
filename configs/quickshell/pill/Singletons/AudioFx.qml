@@ -59,15 +59,21 @@ Singleton {
     function isDraft(id) { return root.draft !== null && root.draft.id === id; }
 
     /**
-     * Each mode's default shape: built-ins use the shipped values, user modes the
-     * values from their first save (`defaults`), older modes their current values.
+     * What ↻ goes back to: built-ins their shipped shape, your own modes their last
+     * saved values (so ↻ only offers to drop unsaved changes, and goes away on Save).
+     * A draft has nothing to go back to.
      */
+    function isBuiltin(id) {
+        for (var i = 0; i < root.builtinModes.length; i++)
+            if (root.builtinModes[i].id === id) return true;
+        return false;
+    }
     function defaultsOf(id) {
         for (var i = 0; i < root.builtinModes.length; i++)
             if (root.builtinModes[i].id === id) return root.builtinModes[i];
+        if (root.isDraft(id)) return null;
         var m = root.modeById(id);
-        if (!m) return null;
-        return m.defaults || { bands: m.bands, bass: m.bass, treble: m.treble, widen: m.widen };
+        return m ? { bands: m.bands, bass: m.bass, treble: m.treble, widen: m.widen } : null;
     }
     function sameShape(a, b) {
         if (!a || !b) return true;
@@ -134,8 +140,7 @@ Singleton {
     function saveMode() {
         var vals = { bands: root.bands.slice(), bass: root.bass, treble: root.treble, widen: root.widen };
         if (root.isDraft(root.preset)) {
-            var first = { defaults: { bands: vals.bands.slice(), bass: vals.bass, treble: vals.treble, widen: vals.widen } };
-            root.modes = root.modes.concat([Object.assign({ id: root.draft.id, name: root.draft.name }, vals, first)]);
+            root.modes = root.modes.concat([Object.assign({ id: root.draft.id, name: root.draft.name }, vals)]);
             root.draft = null;
         } else {
             root.modes = root.modes.map(function (m) { return m.id === root.preset ? Object.assign({}, m, vals) : m; });
@@ -156,12 +161,20 @@ Singleton {
         if (root.preset === id) { root.preset = ""; root.commit(false); }
         root.save();
     }
-    /** Bring the five shipped modes back (renamed/removed ones reset), keeping user modes. */
+    /**
+     * Restore defaults: the five shipped modes come back with their shipped shapes,
+     * your own modes are kept but flattened to 0, and every device on any of them
+     * takes the new values (so the sound changes too, not just the saved list).
+     */
     function restoreDefaults() {
-        var ids = root.builtinModes.map(function (m) { return m.id; });
-        root.modes = root.cloneModes(root.builtinModes).concat(root.modes.filter(function (m) { return ids.indexOf(m.id) < 0; }));
+        var flat = { bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bass: 0, treble: 0, widen: 0 };
+        var user = root.modes.filter(function (m) { return !root.isBuiltin(m.id); })
+            .map(function (m) { return { id: m.id, name: m.name, bands: flat.bands.slice(), bass: 0, treble: 0, widen: 0 }; });
+        root.modes = root.cloneModes(root.builtinModes).concat(user);
         for (var i = 0; i < root.builtinModes.length; i++)
             root.reapplyMode(root.builtinModes[i].id, root.builtinModes[i]);
+        for (var j = 0; j < user.length; j++)
+            root.reapplyMode(user[j].id, flat);
         root.save();
     }
 
